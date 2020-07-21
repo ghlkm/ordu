@@ -142,7 +142,7 @@ int main(const int argc, const char** argv)
 					setincomp.push_back(pj);
 				}
 			}
-			
+			//for (int )
 		}
 
 	}
