@@ -43,7 +43,13 @@ int main(const int argc, const char** argv)
 	const char* indexfile = Param::read(argc, argv, "-i", "");
 	// removed in iPref problem
 	//const float sigma = atof(Param::read(argc, argv, "-R", ""));
-	//const char* methodName = Param::read(argc, argv, "-m", "");
+	const char* methodName = Param::read(argc, argv, "-m", "");
+
+
+	// weight vector for testing
+	vector<float> userpref(2, 0);
+	userpref[0] = 0.20;
+	userpref[1] = 0.40;
 
 	int resultSize = 0;
 	
@@ -110,11 +116,54 @@ int main(const int argc, const char** argv)
 
 	// at = clock();
 
-	//k-skyband 
-	vector<long int> skyband;
-	kskyband(dim, *rtree, skyband, PointSet, k);
-	cout << skyband.size() << endl;
+	// baseline algorithm 
+	// (1) compute k-skyband set SK
+	// (2) for each pi, suppose T_pi is the incomparable set (a) p_j is incomparable with p_i in SK, (2) p_j w > p_i w
+	// (3) for each p in T_pi, compute the distance from point w to hyperplane H_{i,j} equation: d = \frac{a1 w1 +  a2 w2 + ... ad_1 wd-1+D}{\sqrt{a1^2+a2^2+ ... + ad-1^2}}
+	// (4) compute the inflection point of pi: the k-th laregst value in step (3), denotes as inf_pi
+	// (5) pi's rksykband interval: inf_pi to infinity
+	// (6) the radius rho is the T-th minimum value in all pi in SK
+	
+	if (strcmp(methodName, "BB") == 0)
+	{
+		//k-skyband 
+		vector<long int> skyband;
+		kskyband(dim, *rtree, skyband, PointSet, k);
+		cout << skyband.size() << endl;
+
+		
+		for (int ski = 0; ski < skyband.size(); ski++)
+		{
+			vector<long int> setincomp;
+			for (int pj = 0; pj < skyband.size(); pj++)
+			{
+				if (incomparableset(PointSet, skyband[ski], skyband[pj], userpref))
+				{
+					setincomp.push_back(pj);
+				}
+			}
+			
+		}
+
+	}
 	
 	
+
+
+	
+
+	// optimized algorithm
+	// (1) revised BBS for w, compute top-k result, store in T directly
+	// (2) for each pi (uncertain status), compute its inflection distance inf_pi, and push it into a max-heap Q (inf_pi as key)
+	// (3) keep fetching until max-heap with size X-k+1, pop the top node out, and initalize p0 = inf_ptop
+	// (4) test the rest candidates by r-dominanace, instead of BBS, thus fetching r-skyband options
+	// (5) shrinks p0 quicly, simulating a scanning from infinity to 0
+	// (6) fetching terminates none of options can be the r-skyband
+	// (7) append Q to T, this is the final result.
+
+	// inclremental version, without known X
+	// We do not have exact X, we need tell the user the radius rho and its corresponding T
+	// It is similar to optimized algorithm, however, it computes incrementally, from rho = 0 to infinity, the size T is from k to k-skyband.
+
 	return 0;
 }
