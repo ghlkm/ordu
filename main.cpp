@@ -12,6 +12,7 @@
 #include "global.h"
 #include "skyline.h"
 #include "param.h"
+#include "iPref.h"
 
 // gobal variables
 vector<vector<float>> HalfSpaces; // halfspace 
@@ -41,8 +42,7 @@ int main(const int argc, const char** argv)
 	int k = atoi(Param::read(argc, argv, "-k", ""));
 	const char* datafile = Param::read(argc, argv, "-f", "");
 	const char* indexfile = Param::read(argc, argv, "-i", "");
-	// removed in iPref problem
-	//const float sigma = atof(Param::read(argc, argv, "-R", ""));
+	const int X = atoi(Param::read(argc, argv, "-X", ""));
 	const char* methodName = Param::read(argc, argv, "-m", "");
 
 
@@ -131,28 +131,48 @@ int main(const int argc, const char** argv)
 		kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
 		cout << skyband.size() << endl;
 
-		
+		vector<long int> topKRet = computeTopK(dim, PointSet, skyband, userpref, k);
+		vector<pair<long int, float>> interval;
+		for (int i = 0; i < topKRet.size(); i++)
+		{
+			interval.push_back(make_pair(topKRet[i], 0));
+		}
+
 		for (int ski = 0; ski < skyband.size(); ski++)
 		{
+			vector<float> radiusSKI;
 			vector<long int> incompset;
+			vector<long int> dominatorSet;
 			for (int pj = 0; pj < skyband.size(); pj++)
 			{
-				if (incomparableset(PointSet, skyband[ski], skyband[pj], userpref)) // step (2)
+				if (IsPjdominatePi(dim, PointSet, pj, ski))
+				{
+					radiusSKI.push_back(FLT_MAX);
+				}
+				else if(incomparableset(PointSet, skyband[ski], skyband[pj], userpref)) // step (2)
 				{
 					incompset.push_back(pj);
 				}
 			}
 
-
 			// here we need a function to compute the inflection radius of option pi
 			for (int inpi = 0; inpi < incompset.size(); inpi++)
 			{
-				//compute the hyperplane of pi and pj ... tooo dangerous 
-				computeHP()
+				//compute the hyperplane of pi and pj 
+				vector<float> tmpHS = computePairHP(dim, PointSet, skyband[ski], incompset[inpi]);
 				//compute the distance from w to hyperplane.
+				float tmpDis = computeDis(tmpHS, userpref);
+				radiusSKI.push_back(tmpDis);
+			}
+			sort(radiusSKI.begin(), radiusSKI.end());
+			if (radiusSKI.size() >= k)
+			{
+				interval.push_back(make_pair(skyband[ski], radiusSKI[radiusSKI.size() - k]));
 			}
 		}
 
+		sort(interval.begin(), interval.end(), sortbysec);
+		cout << "The inflection radius is: " << interval[X].second << endl;
 	}
 	
 	
