@@ -36,6 +36,4 @@ bool dominateRecords(float* a, float* b, const int dimen);
 
 void parseRegions(string &strreg, vector<float>& regions);
 
-bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weight);
-
 #endif

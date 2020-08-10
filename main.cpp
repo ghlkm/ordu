@@ -140,6 +140,10 @@ int main(const int argc, const char** argv)
 
 		for (int ski = 0; ski < skyband.size(); ski++)
 		{
+			if (find(topKRet.begin(), topKRet.end(), skyband[ski])!=topKRet.end())
+			{
+				continue;
+			}
 			vector<float> radiusSKI;
 			vector<long int> incompset;
 			vector<long int> dominatorSet;
