@@ -128,21 +128,29 @@ int main(const int argc, const char** argv)
 	{
 		//k-skyband 
 		vector<long int> skyband;
-		kskyband(dim, *rtree, skyband, PointSet, k);
+		kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
 		cout << skyband.size() << endl;
 
 		
 		for (int ski = 0; ski < skyband.size(); ski++)
 		{
-			vector<long int> setincomp;
+			vector<long int> incompset;
 			for (int pj = 0; pj < skyband.size(); pj++)
 			{
-				if (incomparableset(PointSet, skyband[ski], skyband[pj], userpref))
+				if (incomparableset(PointSet, skyband[ski], skyband[pj], userpref)) // step (2)
 				{
-					setincomp.push_back(pj);
+					incompset.push_back(pj);
 				}
 			}
-			//for (int )
+
+
+			// here we need a function to compute the inflection radius of option pi
+			for (int inpi = 0; inpi < incompset.size(); inpi++)
+			{
+				//compute the hyperplane of pi and pj ... tooo dangerous 
+				computeHP()
+				//compute the distance from w to hyperplane.
+			}
 		}
 
 	}
