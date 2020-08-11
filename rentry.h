@@ -26,7 +26,7 @@ public:
 public:
 	// constructor/destructor
 	RtreeNodeEntry(const int a_id, const Hypercube& a_hc);
-	RtreeNodeEntry::RtreeNodeEntry(const int a_id, const Hypercube& a_hc, const int num_nodes);
+	RtreeNodeEntry(const int a_id, const Hypercube& a_hc, const int num_nodes);
 	virtual ~RtreeNodeEntry();
 	virtual RtreeNodeEntry* clone() const;
 

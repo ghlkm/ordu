@@ -24,6 +24,8 @@
 #include <random>
 #include <queue>
 #include <unordered_set>
+#include <cfloat>
+#include <cassert>
 
 // overload data structures
 #include "collection.h"

@@ -8,17 +8,18 @@ vector<long int> computeTopK(const int dim, float* PG[], vector<long int> skyban
 	for (int i = 0; i < skyband.size(); i++)
 	{
 		float score = 0;
-		float sumWeight = 0;
+		float l2_sumWeight = 0;
 		for (int d = 0; d < dim-1; d++)
 		{
 			score += (PG[skyband[i]][d] + PG[skyband[i]][d + dim]) / 2*weight[d];
-			sumWeight += weight[d];
+            l2_sumWeight += weight[d]*weight[d];
 		}
-		score = (PG[skyband[i]][dim - 1] + PG[skyband[i]][dim - 1 + dim]) / 2 * (1 - sumWeight);
+        score += (PG[skyband[i]][dim - 1] + PG[skyband[i]][dim - 1 + dim]) / 2 * sqrt(1 - l2_sumWeight);
 
 		if (heap.size() < k)
 		{
 			heap.insert(multimap<float, long int>::value_type(score, skyband[i]));
+			//could use emplace， e.g. “heap.emplace(score, skyband[i])”
 		}
 		else if (heap.size() == k && heap.begin()->first < score)
 		{
@@ -64,7 +65,7 @@ bool IsPjdominatePi(const int dimen, float* PG[], long int pi, long int pj)
 bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weight)
 {
 	int dimen = weight.size() + 1;
-	int wd = 0;
+	float l2_wd = 0;
 	float spi = 0, spj = 0;
 	int cpos = 0;
 	int cneg = 0;
@@ -81,7 +82,7 @@ bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weigh
 	{
 		spi += piv[i] * weight[i];
 		spj += pjv[i] * weight[i];
-		wd += weight[i];
+        l2_wd += weight[i]*weight[i];
 
 		if (piv[i] <= pjv[i])
 		{
@@ -93,8 +94,8 @@ bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weigh
 		}
 	}
 
-	spi += (1 - wd)*piv[dimen - 1];
-	spj += (1 - wd)*pjv[dimen - 1];
+	spi += sqrt(1 - l2_wd) * piv[dimen - 1];
+	spj += sqrt(1 - l2_wd) * pjv[dimen - 1];
 
 	if (piv[dimen - 1] <= pjv[dimen - 1])
 	{
@@ -105,7 +106,7 @@ bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weigh
 		cpos++;
 	}
 
-	if (spj > spi && cneg != 0 && cpos != 0)
+	if (spj >= spi && cneg != 0 && cpos != 0)
 		return true;
 	else
 		return false;
@@ -143,8 +144,11 @@ float computeDis(vector<float> tmpHS, vector<float> userpref)
 		dotRet += userpref[i] * tmpHS[i];
 		normVec += tmpHS[i] * tmpHS[i];
 	}
+//  wrong
+//	return abs(dotRet - tmpHS[tmpHS.size() - 1]) / normVec;
 
-	return abs(dotRet - tmpHS[tmpHS.size() - 1]) / normVec;
+//  right for min distance of point to hyperplane
+    return abs(dotRet - tmpHS[tmpHS.size() - 1]) / sqrt(normVec);
 }
 
 bool sortbysec(const pair<long int, float> &a, const pair<long int, float> &b)

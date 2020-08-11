@@ -2,6 +2,7 @@
 ----------------------DBGroup@SUSTech, 2020------------
 -------------------- tangloner@gmail.com-------------*/
 
+#include <chrono>
 #include "header.h"
 #include "hypercube.h"
 #include "rentry.h"
@@ -25,6 +26,57 @@ double totalSpaceCost = 0.0; // space cost (MB)
 double treeSpacecost = 0.0;
 double Spacecost = 0.0;
 
+template<typename V>
+float domin_r_ij(const V &w, const V &h_ij) {
+    /*
+     * \tpara V utk_vector
+     *
+     * return:
+     *   r_ij
+     */
+    /*
+     * n is one of the normal vector of hyperplane h_ij, actually the coefficients of h_ij is n
+     *
+     * cos(\theta) |w| = w \cdot n / |n|
+     *
+     * w_ij_ = w- n cos(\theta) |w|/|n| = w- w \cdot n \cdot n / |n|^2
+     *
+     * w_ij = \lambda w_ij_, \Sigma w_ij^2 =1
+     * --> w_ij = w_ij_ / sqrt(\Sigma w_ij_^2)
+     *
+     * inflection distance r_ij^2 = (w-w_ij) \cdot (w-w_ij)
+     */
+
+    // h_ij and w can be with dif directions because of
+    // the resulting w_ij_=w-w*h_ij*h_ij/(h_ij*h_ij)
+
+    float w_dot_h=0, l2_h=0;
+    for (auto i = 0; i < w.size(); ++i) {
+        w_dot_h += w[i] * h_ij[i];
+        l2_h+= h_ij[i] * h_ij[i];
+    }
+    V w_ij_(w.size());
+    for (auto i = 0; i < w.size(); ++i) {
+        w_ij_[i] = w[i] - w_dot_h / l2_h * h_ij[i];
+    }
+    float l2_sum=0;
+    for (auto i = 0; i < w.size(); ++i) {
+        l2_sum+=w_ij_[i]*w_ij_[i];
+    }
+    l2_sum=sqrt(l2_sum);
+    for (auto i = 0; i < w.size(); ++i) {
+        w_ij_[i]/=l2_sum;
+    }
+    for (auto i = 0; i < w.size(); ++i) {
+        w_ij_[i]= w[i] - w_ij_[i];
+    }
+    float ret=0;
+    for (auto i = 0; i < w.size(); ++i) {
+        ret+= w_ij_[i] * w_ij_[i];
+    }
+    return sqrt(ret); // rou;
+}
+
 int main(const int argc, const char** argv)
 {
 	cout.precision(4);
@@ -44,23 +96,37 @@ int main(const int argc, const char** argv)
 	const char* indexfile = Param::read(argc, argv, "-i", "");
 	const int X = atoi(Param::read(argc, argv, "-X", ""));
 	const char* methodName = Param::read(argc, argv, "-m", "");
+    int w_num = atoi(Param::read(argc, argv, "-w", ""));
+    int p_num = atoi(Param::read(argc, argv, "-p", ""));// how many option want to run
+    const char *w_file = Param::read(argc, argv, "-W", "");
+    std::vector<std::vector<float>> ws(w_num, std::vector<float>(dim));
+    fstream fpdata;
+    fpdata.open(w_file, ios::in);
+    for (auto i = 0; i < ws.size(); ++i) {
+        for (auto j = 0; j < ws[i].size(); ++j) {
+            fpdata >> ws[i][j];
+        }
+    }
+    fpdata.close();
 
 
 	// weight vector for testing
-	vector<float> userpref(2, 0);
-	userpref[0] = 0.20;
-	userpref[1] = 0.40;
-
-	int resultSize = 0;
+    vector<float> userpref(ws[0].begin(), ws[0].begin()+(ws[0].size()-1));
+    vector<float> w(ws[0].begin(), ws[0].end());
+    for(auto i:w){
+        cout<< i <<", ";
+    }
+    cout<<endl;
+    int resultSize = 0;
 	
 	
 	// data loading
 	cout << "Load data points from file" << endl;
 	float** PointSet = new float*[MAXPTS + 1];
 	RtreeNodeEntry** p = new RtreeNodeEntry*[MAXPTS];
-	fstream fpdata;
+//	fstream fpdata;
 	fpdata.open(datafile, ios::in);
-	while (true)
+	while (p_num--)
 	{
 		int id;
 		float* cl = new float[dim];
@@ -126,16 +192,19 @@ int main(const int argc, const char** argv)
 	
 	if (strcmp(methodName, "BB") == 0)
 	{
-		//k-skyband 
-		vector<long int> skyband;
+		//k-skyband
+        auto begin = chrono::steady_clock::now();
+        vector<long int> skyband;
 		kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
 		cout << skyband.size() << endl;
-
 		vector<long int> topKRet = computeTopK(dim, PointSet, skyband, userpref, k);
+		set<int> topKRet_test(topKRet.begin(), topKRet.end());
+		assert(topKRet_test.size()==k);
+		assert(topKRet.size()==k);
 		vector<pair<long int, float>> interval;
 		for (int i = 0; i < topKRet.size(); i++)
 		{
-			interval.push_back(make_pair(topKRet[i], 0));
+			interval.emplace_back(topKRet[i], 0); // could use emplace_back
 		}
 
 		for (int ski = 0; ski < skyband.size(); ski++)
@@ -149,33 +218,57 @@ int main(const int argc, const char** argv)
 			vector<long int> dominatorSet;
 			for (int pj = 0; pj < skyband.size(); pj++)
 			{
-				if (IsPjdominatePi(dim, PointSet, pj, ski))
+			    if(ski==pj)
+			    {
+                    continue;
+                }
+				if (IsPjdominatePi(dim, PointSet, skyband[ski], skyband[pj]))
 				{
 					radiusSKI.push_back(FLT_MAX);
 				}
 				else if(incomparableset(PointSet, skyband[ski], skyband[pj], userpref)) // step (2)
 				{
-					incompset.push_back(pj);
+					incompset.push_back(skyband[pj]);
+				}else
+                {
+				    assert(find(topKRet.begin(), topKRet.end(), skyband[pj])==topKRet.end());
 				}
 			}
-
 			// here we need a function to compute the inflection radius of option pi
 			for (int inpi = 0; inpi < incompset.size(); inpi++)
 			{
-				//compute the hyperplane of pi and pj 
-				vector<float> tmpHS = computePairHP(dim, PointSet, skyband[ski], incompset[inpi]);
-				//compute the distance from w to hyperplane.
-				float tmpDis = computeDis(tmpHS, userpref);
-				radiusSKI.push_back(tmpDis);
+			    vector<float> HS(PointSet[skyband[ski]], PointSet[skyband[ski]]+dim);
+			    for(auto i=0;i<dim;++i)
+			    {
+			        HS[i]-=PointSet[incompset[inpi]][i];
+			    }
+			    float tmpdis=domin_r_ij(w, HS);
+                radiusSKI.push_back(tmpdis);
+                //compute the hyperplane of pi and pj
+//				vector<float> tmpHS = computePairHP(dim, PointSet, skyband[ski], incompset[inpi]);
+//				//compute the distance from w to hyperplane.
+//				float tmpDis = computeDis(tmpHS, userpref);
+//				radiusSKI.push_back(tmpDis);
 			}
 			sort(radiusSKI.begin(), radiusSKI.end());
+			assert(radiusSKI.size() >= k);
 			if (radiusSKI.size() >= k)
 			{
-				interval.push_back(make_pair(skyband[ski], radiusSKI[radiusSKI.size() - k]));
+				interval.emplace_back(skyband[ski], radiusSKI[radiusSKI.size() - k]);
 			}
 		}
-
+        assert(interval.size()>=X);
 		sort(interval.begin(), interval.end(), sortbysec);
+        auto end = chrono::steady_clock::now();
+        auto t=end-begin;
+        cout<<"run time:"<< t.count()<<endl;
+        int cnt=0;
+		for(auto i=interval.begin();i!=interval.end();++i){
+		    cout<<i->first<<", "<<i->second<<endl;
+		    ++cnt;
+		    if(cnt>X)
+                break;
+		}
 		cout << "The inflection radius is: " << interval[X].second << endl;
 	}
 	
