@@ -28,6 +28,7 @@ double Spacecost = 0.0;
 
 template<typename V>
 float domin_r_ij(const V &w, const V &h_ij) {
+    //TODO move to utk_math_lib later
     /*
      * \tpara V utk_vector
      *
@@ -59,13 +60,12 @@ float domin_r_ij(const V &w, const V &h_ij) {
     for (auto i = 0; i < w.size(); ++i) {
         w_ij_[i] = w[i] - w_dot_h / l2_h * h_ij[i];
     }
-    float l2_sum=0;
+    float l1=0;
     for (auto i = 0; i < w.size(); ++i) {
-        l2_sum+=w_ij_[i]*w_ij_[i];
+        l1+= w_ij_[i];
     }
-    l2_sum=sqrt(l2_sum);
     for (auto i = 0; i < w.size(); ++i) {
-        w_ij_[i]/=l2_sum;
+        w_ij_[i]/=l1;
     }
     for (auto i = 0; i < w.size(); ++i) {
         w_ij_[i]= w[i] - w_ij_[i];
@@ -109,14 +109,6 @@ int main(const int argc, const char** argv)
     }
     fpdata.close();
 
-
-	// weight vector for testing
-    vector<float> userpref(ws[0].begin(), ws[0].begin()+(ws[0].size()-1));
-    vector<float> w(ws[0].begin(), ws[0].end());
-    for(auto i:w){
-        cout<< i <<", ";
-    }
-    cout<<endl;
     int resultSize = 0;
 	
 	
@@ -192,84 +184,83 @@ int main(const int argc, const char** argv)
 	
 	if (strcmp(methodName, "BB") == 0)
 	{
-		//k-skyband
-        auto begin = chrono::steady_clock::now();
-        vector<long int> skyband;
-		kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
-		cout << skyband.size() << endl;
-		vector<long int> topKRet = computeTopK(dim, PointSet, skyband, userpref, k);
-		set<int> topKRet_test(topKRet.begin(), topKRet.end());
-		assert(topKRet_test.size()==k);
-		assert(topKRet.size()==k);
-		vector<pair<long int, float>> interval;
-		for (int i = 0; i < topKRet.size(); i++)
-		{
-			interval.emplace_back(topKRet[i], 0); // could use emplace_back
-		}
+	    vector<long int> skyband;
+	    kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
+	    cout << skyband.size() << endl;
+        for(auto iteration=0;iteration<w_num;++iteration) {
+            // TODO Actually, k-skyband don't needed for each iteration for diff weights
+            // weight vector for testing
+            vector<float> userpref(ws[iteration].begin(), ws[iteration].begin() + (ws[iteration].size() - 1));
+            vector<float> w(ws[iteration].begin(), ws[iteration].end());
+            for (auto i:w) {
+                cout << i << ", ";
+            }
+            cout << endl;
+            //k-skyband
+            auto begin = chrono::steady_clock::now();
+            vector<long int> topKRet = computeTopK(dim, PointSet, skyband, userpref, k);
+            set<int> topKRet_test(topKRet.begin(), topKRet.end());
+            assert(topKRet_test.size() == k);
+            assert(topKRet.size() == k);
+            vector<pair<long int, float>> interval;
+            for (int i = 0; i < topKRet.size(); i++) {
+                interval.emplace_back(topKRet[i], 0); // could use emplace_back
+            }
 
-		for (int ski = 0; ski < skyband.size(); ski++)
-		{
-			if (find(topKRet.begin(), topKRet.end(), skyband[ski])!=topKRet.end())
-			{
-				continue;
-			}
-			vector<float> radiusSKI;
-			vector<long int> incompset;
-			vector<long int> dominatorSet;
-			for (int pj = 0; pj < skyband.size(); pj++)
-			{
-			    if(ski==pj)
-			    {
+            for (int ski = 0; ski < skyband.size(); ski++) {
+                if (find(topKRet.begin(), topKRet.end(), skyband[ski]) != topKRet.end()) {
                     continue;
                 }
-				if (IsPjdominatePi(dim, PointSet, skyband[ski], skyband[pj]))
-				{
-					radiusSKI.push_back(FLT_MAX);
-				}
-				else if(incomparableset(PointSet, skyband[ski], skyband[pj], userpref)) // step (2)
-				{
-					incompset.push_back(skyband[pj]);
-				}else
-                {
-				    assert(find(topKRet.begin(), topKRet.end(), skyband[pj])==topKRet.end());
-				}
-			}
-			// here we need a function to compute the inflection radius of option pi
-			for (int inpi = 0; inpi < incompset.size(); inpi++)
-			{
-			    vector<float> HS(PointSet[skyband[ski]], PointSet[skyband[ski]]+dim);
-			    for(auto i=0;i<dim;++i)
-			    {
-			        HS[i]-=PointSet[incompset[inpi]][i];
-			    }
-			    float tmpdis=domin_r_ij(w, HS);
-                radiusSKI.push_back(tmpdis);
-                //compute the hyperplane of pi and pj
+                vector<float> radiusSKI;
+                vector<long int> incompset;
+                vector<long int> dominatorSet;
+                for (int pj = 0; pj < skyband.size(); pj++) {
+                    if (ski == pj) {
+                        continue;
+                    }
+                    if (IsPjdominatePi(dim, PointSet, skyband[ski], skyband[pj])) {
+                        radiusSKI.push_back(FLT_MAX);
+                    } else if (incomparableset(PointSet, skyband[ski], skyband[pj], userpref)) // step (2)
+                    {
+                        incompset.push_back(skyband[pj]);
+                    } else {
+                        assert(find(topKRet.begin(), topKRet.end(), skyband[pj]) == topKRet.end());
+                    }
+                }
+                // here we need a function to compute the inflection radius of option pi
+                for (int inpi = 0; inpi < incompset.size(); inpi++) {
+                    vector<float> HS(PointSet[skyband[ski]], PointSet[skyband[ski]] + dim);
+                    for (auto i = 0; i < dim; ++i) {
+                        HS[i] -= PointSet[incompset[inpi]][i];
+                    }
+                    float tmpdis = domin_r_ij(w, HS);
+                    radiusSKI.push_back(tmpdis);
+                    //compute the hyperplane of pi and pj
 //				vector<float> tmpHS = computePairHP(dim, PointSet, skyband[ski], incompset[inpi]);
 //				//compute the distance from w to hyperplane.
 //				float tmpDis = computeDis(tmpHS, userpref);
 //				radiusSKI.push_back(tmpDis);
-			}
-			sort(radiusSKI.begin(), radiusSKI.end());
-			assert(radiusSKI.size() >= k);
-			if (radiusSKI.size() >= k)
-			{
-				interval.emplace_back(skyband[ski], radiusSKI[radiusSKI.size() - k]);
-			}
-		}
-        assert(interval.size()>=X);
-		sort(interval.begin(), interval.end(), sortbysec);
-        auto end = chrono::steady_clock::now();
-        auto t=end-begin;
-        cout<<"run time:"<< t.count()<<endl;
-        int cnt=0;
-		for(auto i=interval.begin();i!=interval.end();++i){
-		    cout<<i->first<<", "<<i->second<<endl;
-		    ++cnt;
-		    if(cnt>X)
-                break;
-		}
-		cout << "The inflection radius is: " << interval[X].second << endl;
+                }
+                sort(radiusSKI.begin(), radiusSKI.end());
+                assert(radiusSKI.size() >= k);
+                if (radiusSKI.size() >= k) {
+                    interval.emplace_back(skyband[ski], radiusSKI[radiusSKI.size() - k]);
+                }
+            }
+            assert(interval.size() >= X);
+            sort(interval.begin(), interval.end(), sortbysec);
+            auto end = chrono::steady_clock::now();
+            chrono::duration<double> t = end - begin;
+            cout << "run time:" << t.count() << endl;
+            int cnt = 0;
+            for (auto i = interval.begin(); i != interval.end(); ++i) {
+                cout << i->second << ", " << i->first << endl;
+                ++cnt;
+                if (cnt > X)
+                    break;
+            }
+            cout << "The inflection radius is: " << interval[X].second << "\n\n\n";
+        }
 	}
 	
 	

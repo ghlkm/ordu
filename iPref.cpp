@@ -8,13 +8,13 @@ vector<long int> computeTopK(const int dim, float* PG[], vector<long int> skyban
 	for (int i = 0; i < skyband.size(); i++)
 	{
 		float score = 0;
-		float l2_sumWeight = 0;
+		float l1_sumWeight = 0;
 		for (int d = 0; d < dim-1; d++)
 		{
 			score += (PG[skyband[i]][d] + PG[skyband[i]][d + dim]) / 2*weight[d];
-            l2_sumWeight += weight[d]*weight[d];
+            l1_sumWeight += weight[d];
 		}
-        score += (PG[skyband[i]][dim - 1] + PG[skyband[i]][dim - 1 + dim]) / 2 * sqrt(1 - l2_sumWeight);
+        score += (PG[skyband[i]][dim - 1] + PG[skyband[i]][dim - 1 + dim]) / 2 * (1 - l1_sumWeight);
 
 		if (heap.size() < k)
 		{
@@ -65,7 +65,7 @@ bool IsPjdominatePi(const int dimen, float* PG[], long int pi, long int pj)
 bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weight)
 {
 	int dimen = weight.size() + 1;
-	float l2_wd = 0;
+	float l1_wd = 0;
 	float spi = 0, spj = 0;
 	int cpos = 0;
 	int cneg = 0;
@@ -82,7 +82,7 @@ bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weigh
 	{
 		spi += piv[i] * weight[i];
 		spj += pjv[i] * weight[i];
-        l2_wd += weight[i]*weight[i];
+        l1_wd += weight[i];
 
 		if (piv[i] <= pjv[i])
 		{
@@ -94,8 +94,8 @@ bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weigh
 		}
 	}
 
-	spi += sqrt(1 - l2_wd) * piv[dimen - 1];
-	spj += sqrt(1 - l2_wd) * pjv[dimen - 1];
+	spi += (1 - l1_wd) * piv[dimen - 1];
+	spj += (1 - l1_wd) * pjv[dimen - 1];
 
 	if (piv[dimen - 1] <= pjv[dimen - 1])
 	{
