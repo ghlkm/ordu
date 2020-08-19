@@ -198,7 +198,7 @@ int main(const int argc, const char** argv)
 	    vector<long int> skyband;
 	    kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
 	    cout << skyband.size() << endl;
-        for(auto iteration=1;iteration<w_num;++iteration) {
+        for(auto iteration=0;iteration<w_num;++iteration) {
             // TODO Actually, k-skyband don't needed for each iteration for diff weights
             // weight vector for testing
             vector<float> userpref(ws[iteration].begin(), ws[iteration].begin() + (ws[iteration].size() - 1));
