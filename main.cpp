@@ -51,6 +51,7 @@ inline V proj(const V& u, const V &v){
 template<typename V>
 float domin_r_ij2(const V &w, const V &h_ij) {
     //TODO this fun is in utk_math_lib, merge utk_math_lib later
+    //TODO when vertical point is out of domain, use QP solver
     /*
      *     V ones(h_ij.size(), 1);
      *     V ones_n=ones-proj(h_ij, ones);
