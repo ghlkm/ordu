@@ -3,7 +3,6 @@
 vector<long int> computeTopK(const int dim, float* PG[], vector<long int> skyband, vector<float>& weight, int k)
 {
 	multimap<float, long int> heap;
-	multimap<float, long int>::iterator heapIter;
 
 	for (int i = 0; i < skyband.size(); i++)
 	{
@@ -23,14 +22,13 @@ vector<long int> computeTopK(const int dim, float* PG[], vector<long int> skyban
 		}
 		else if (heap.size() == k && heap.begin()->first < score)
 		{
-			heapIter = heap.begin();
-			heap.erase(heapIter);
-			heap.insert(multimap<float, long int>::value_type(score, skyband[i]));
+			heap.erase(heap.begin());
+			heap.emplace(score, skyband[i]);
 		}
 	}
 
 	vector<long int> topkRet;
-	for (heapIter = heap.begin(); heapIter != heap.end(); heapIter++)
+	for (auto heapIter = heap.rbegin(); heapIter != heap.rend(); ++heapIter)
 	{
 		topkRet.push_back(heapIter->second);
 	}

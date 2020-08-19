@@ -66,7 +66,6 @@ int countkDominator(const int dimen, const float pt[], vector<long> kskyband, fl
 	for (iter = kskyband.begin(); iter != kskyband.end(); iter++)
 	{
 		long pid = *iter;
-		float s[MAXDIMEN];
 		bool dominated = true;
 		for (int i = 0; i < dimen; i++)
 		{

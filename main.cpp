@@ -27,54 +27,65 @@ double treeSpacecost = 0.0;
 double Spacecost = 0.0;
 
 template<typename V>
-float domin_r_ij(const V &w, const V &h_ij) {
-    //TODO move to utk_math_lib later
+inline V proj(const V& u, const V &v){
     /*
-     * \tpara V utk_vector
-     *
-     * return:
-     *   r_ij
+     * <u, v> / <u, u> * u
      */
+    float dot=0;
+    assert(u.size()==v.size());
+    for (int i = 0; i < u.size(); ++i) {
+        dot+=u[i]*v[i];
+    }
+    float u_mod2=0;
+    for (int i = 0; i < u.size(); ++i) {
+        u_mod2+=u[i]*u[i];
+    }
+    float length=dot/u_mod2;
+    V ret(u);
+    for(int i = 0; i < u.size(); ++i){
+        ret[i]*=length;
+    }
+    return ret;
+}
+
+template<typename V>
+float domin_r_ij2(const V &w, const V &h_ij) {
+    //TODO this fun is in utk_math_lib, merge utk_math_lib later
     /*
-     * n is one of the normal vector of hyperplane h_ij, actually the coefficients of h_ij is n
-     *
-     * cos(\theta) |w| = w \cdot n / |n|
-     *
-     * w_ij_ = w- n cos(\theta) |w|/|n| = w- w \cdot n \cdot n / |n|^2
-     *
-     * w_ij = \lambda w_ij_, \Sigma w_ij^2 =1
-     * --> w_ij = w_ij_ / sqrt(\Sigma w_ij_^2)
-     *
-     * inflection distance r_ij^2 = (w-w_ij) \cdot (w-w_ij)
+     *     V ones(h_ij.size(), 1);
+     *     V ones_n=ones-proj(h_ij, ones);
+     *     V d=proj(h_ij, WA)+proj(ones_n, WA);
+     *     return sqrt(d*d);
      */
-
-    // h_ij and w can be with dif directions because of
-    // the resulting w_ij_=w-w*h_ij*h_ij/(h_ij*h_ij)
-
-    float w_dot_h=0, l2_h=0;
-    for (auto i = 0; i < w.size(); ++i) {
-        w_dot_h += w[i] * h_ij[i];
-        l2_h+= h_ij[i] * h_ij[i];
+    assert(h_ij.size()>=2); //dim should be no less than 2
+    V ones(h_ij.size(), 1.0);
+    V ones_proj_on_hij=proj(h_ij, ones); //proj(h_ij, ones)
+    for (int i = 0; i < ones.size(); ++i) {
+        ones[i]-=ones_proj_on_hij[i];   // V ones_n=ones-proj(h_ij, ones);
     }
-    V w_ij_(w.size());
-    for (auto i = 0; i < w.size(); ++i) {
-        w_ij_[i] = w[i] - w_dot_h / l2_h * h_ij[i];
+    V point_of_hij(h_ij.size(), 0.0);// point A
+    float sum=-h_ij[0]+h_ij[1];
+    if(sum!=0){
+        point_of_hij[0]= h_ij[1] / sum;
+        point_of_hij[1]= -h_ij[0] / sum; // normalize A such that \Sigma A[i]=1
+    }else{
+        point_of_hij[0]=0.5;
+        point_of_hij[1]=0.5;
     }
-    float l1=0;
-    for (auto i = 0; i < w.size(); ++i) {
-        l1+= w_ij_[i];
+    // point A init finish
+    for (int k = 0; k < w.size(); ++k) {
+        point_of_hij[k]-=w[k]; //A-->WA
     }
-    for (auto i = 0; i < w.size(); ++i) {
-        w_ij_[i]/=l1;
+    V A_proj_on_hij=proj(h_ij, point_of_hij); //proj(h_ij, WA)
+    V A_proj_on_onesn=proj(ones, point_of_hij); //proj(ones_n, WA)
+    for (int j = 0; j < A_proj_on_hij.size(); ++j) {
+        A_proj_on_hij[j]+=A_proj_on_onesn[j]; //d=proj(h_ij, WA)+proj(ones_n, WA)
     }
-    for (auto i = 0; i < w.size(); ++i) {
-        w_ij_[i]= w[i] - w_ij_[i];
+    float WA_proj_on_hij_ones_mod2=0;
+    for (int j = 0; j < A_proj_on_hij.size(); ++j) {
+        WA_proj_on_hij_ones_mod2+= A_proj_on_hij[j] * A_proj_on_hij[j]; // d*d
     }
-    float ret=0;
-    for (auto i = 0; i < w.size(); ++i) {
-        ret+= w_ij_[i] * w_ij_[i];
-    }
-    return sqrt(ret); // rou;
+    return sqrt(WA_proj_on_hij_ones_mod2); //return sqrt(d*d)
 }
 
 int main(const int argc, const char** argv)
@@ -187,24 +198,23 @@ int main(const int argc, const char** argv)
 	    vector<long int> skyband;
 	    kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
 	    cout << skyband.size() << endl;
-        for(auto iteration=0;iteration<w_num;++iteration) {
+        for(auto iteration=1;iteration<w_num;++iteration) {
             // TODO Actually, k-skyband don't needed for each iteration for diff weights
             // weight vector for testing
             vector<float> userpref(ws[iteration].begin(), ws[iteration].begin() + (ws[iteration].size() - 1));
             vector<float> w(ws[iteration].begin(), ws[iteration].end());
-            for (auto i:w) {
+            cout<<"w: ";
+            for (auto i:userpref) {
                 cout << i << ", ";
             }
-            cout << endl;
+            cout <<w.back()<<endl;
             //k-skyband
             auto begin = chrono::steady_clock::now();
             vector<long int> topKRet = computeTopK(dim, PointSet, skyband, userpref, k);
-            set<int> topKRet_test(topKRet.begin(), topKRet.end());
-            assert(topKRet_test.size() == k);
             assert(topKRet.size() == k);
             vector<pair<long int, float>> interval;
             for (int i = 0; i < topKRet.size(); i++) {
-                interval.emplace_back(topKRet[i], 0); // could use emplace_back
+                interval.emplace_back(topKRet[i], 0);
             }
 
             for (int ski = 0; ski < skyband.size(); ski++) {
@@ -218,13 +228,19 @@ int main(const int argc, const char** argv)
                     if (ski == pj) {
                         continue;
                     }
-                    if (IsPjdominatePi(dim, PointSet, skyband[ski], skyband[pj])) {
+                    if(radiusSKI.size()>=k)// prune
+                        continue;
+                    if (IsPjdominatePi(dim, PointSet, skyband[ski], skyband[pj]))
+                    {
                         radiusSKI.push_back(FLT_MAX);
-                    } else if (incomparableset(PointSet, skyband[ski], skyband[pj], userpref)) // step (2)
+                    }
+                    else if (incomparableset(PointSet, skyband[ski], skyband[pj], userpref)) // step (2)
                     {
                         incompset.push_back(skyband[pj]);
-                    } else {
-                        assert(find(topKRet.begin(), topKRet.end(), skyband[pj]) == topKRet.end());
+                    }
+                    else
+                    {
+//                        assert(find(topKRet.begin(), topKRet.end(), skyband[pj]) == topKRet.end());
                     }
                 }
                 // here we need a function to compute the inflection radius of option pi
@@ -233,7 +249,7 @@ int main(const int argc, const char** argv)
                     for (auto i = 0; i < dim; ++i) {
                         HS[i] -= PointSet[incompset[inpi]][i];
                     }
-                    float tmpdis = domin_r_ij(w, HS);
+                    float tmpdis = domin_r_ij2(w, HS);
                     radiusSKI.push_back(tmpdis);
                     //compute the hyperplane of pi and pj
 //				vector<float> tmpHS = computePairHP(dim, PointSet, skyband[ski], incompset[inpi]);
@@ -249,9 +265,12 @@ int main(const int argc, const char** argv)
             }
             assert(interval.size() >= X);
             sort(interval.begin(), interval.end(), sortbysec);
+            for (auto i=0;i<k;++i) {
+                interval[i].first=topKRet[i];
+            }
             auto end = chrono::steady_clock::now();
             chrono::duration<double> t = end - begin;
-            cout << "run time:" << t.count() << endl;
+//            cout << "run time:" << t.count() << endl;
             int cnt = 0;
             for (auto i = interval.begin(); i != interval.end(); ++i) {
                 cout << i->second << ", " << i->first << endl;
@@ -259,7 +278,8 @@ int main(const int argc, const char** argv)
                 if (cnt > X)
                     break;
             }
-            cout << "The inflection radius is: " << interval[X].second << "\n\n\n";
+            cout<<"\n\n";
+//            cout << "The inflection radius is: " << interval[X].second << "\n";
         }
 	}
 	
