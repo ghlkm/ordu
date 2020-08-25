@@ -8,6 +8,9 @@
 #include "virtualRNode.h"
 #include "filemem.h"
 #include "global.h"
+#include "skyline.h"
+
+extern unordered_map<long int, RtreeNode*> ramTree;
 
 //compute Top-K result set
 vector<long int> computeTopK(const int dim, float* PG[], vector<long int> skyband, vector<float>& weight, int k);
@@ -26,5 +29,11 @@ float computeDis(vector<float> tmpHS, vector<float> userpref);
 
 // sort pair
 bool sortbysec(const pair<long int, float> &a, const pair<long int, float> &b);
+
+// optimized algorithm
+float computeRho(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[]);
+
+// compute the radius in phase 2, optimized algorithm
+float computeradius(const int k, const int dim, long int pi, vector<float>& userpref, vector<long int>& incompSet, float* PG[]);
 
 #endif
