@@ -14,7 +14,8 @@
 #include "skyline.h"
 #include "param.h"
 #include "iPref.h"
-
+#include "qp_solver.h"
+#include "utk_math_lib.h"
 /*the headers for osqp solver*/
 //#include "qp_solver.h"
 //#include "osqp.h"
@@ -23,6 +24,8 @@
 vector<vector<float>> HalfSpaces; // halfspace 
 unordered_map<long int, long int> RecordIDtoHalfPlaneID;  //  record ID to halfplane ID
 unordered_map<long int, RtreeNode*> ramTree; // load Rtree to main-memory
+qp_solver qp;  //qp solver use for calculate dominate radius
+vector<vector<c_float>> g_r_domain_vec; // use for r-dominate testing
 
 int objCnt = 0; // # of data objects
 double totalIO = 0; // # of IO access
@@ -47,25 +50,31 @@ int main(const int argc, const char** argv)
 	}
 
 	int dim = atoi(Param::read(argc, argv, "-d", ""));
-	int k = atoi(Param::read(argc, argv, "-k", ""));
+//	int k = atoi(Param::read(argc, argv, "-k", ""));
 	const char* datafile = Param::read(argc, argv, "-f", "");
 	const char* indexfile = Param::read(argc, argv, "-i", "");
 	const int X = atoi(Param::read(argc, argv, "-X", ""));
 	const char* methodName = Param::read(argc, argv, "-m", "");
     int w_num = atoi(Param::read(argc, argv, "-w", "")); // the number of tested user weights
 
-	// load all test user preference, in fact we should use different k in different cases
-	const char *w_file = Param::read(argc, argv, "-W", "");
+//    write file format:
+//      <k1, w_11, w_12, w_13, ..., w_1d>
+//      <k2, w_21, w_22, w_23, ..., w_2d>
+//      ...
+//      <kn, w_n1, w_n2, w_n3, ..., w_nd>
+    const char *w_file = Param::read(argc, argv, "-W", "");
+
     vector<vector<float>> ws(w_num, vector<float>(dim));
+    vector<int> ks(w_num);
 	fstream fpdata;
     fpdata.open(w_file, ios::in);
     for (int i = 0; i < ws.size(); ++i) {
+        fpdata >> ks[i];
         for (int j = 0; j < ws[i].size(); ++j) {
             fpdata >> ws[i][j];
         }
     }
     fpdata.close();
-
 
 
     int resultSize = 0;
@@ -128,8 +137,9 @@ int main(const int argc, const char** argv)
 	// aggregate rtree
 	aggregateRecords(*rtree);
 	cout << "[Aggregate Rtree done]" << endl;
-
-	if (strcmp(methodName, "BB") == 0)
+    qp=qp_solver(dim);
+    g_r_domain_vec=gen_r_domain_vec(dim);
+    if (strcmp(methodName, "BB") == 0)
 	{
 		// baseline algorithm 
 		// (1) compute k-skyband set SK
@@ -143,22 +153,22 @@ int main(const int argc, const char** argv)
 		for (int wi = 0; wi < w_num; wi++)
 		{
 			vector<long int> skyband;
+			int k=ks[wi];
 			kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
 			cout << skyband.size() << endl;
 
 			// weight vector for testing, we should remove the redundant one
-			vector<float> userpref(ws[wi].begin(), ws[wi].begin() + (ws[wi].size() - 1));
 			vector<float> w(ws[wi].begin(), ws[wi].end());
 
 			cout << "Testing w: ";
-			for (int di = 0; di < userpref.size(); di++)
+			for (int di = 0; di < dim-1; di++)
 			{
-				cout << userpref[di] << ", ";
+				cout << w[di] << ", ";
 			}
-			cout << endl;
-
+			cout<< w.back() <<endl;
+            cout << "Testing k: " << k <<endl;
 			//k-skyband
-			vector<long int> topKRet = computeTopK(dim, PointSet, skyband, userpref, k);
+			vector<long int> topKRet = computeTopK(dim, PointSet, skyband, w, k);
 			assert(topKRet.size() == k);
 			vector<pair<long int, float>> interval;
 			for (int i = 0; i < topKRet.size(); i++) {
@@ -182,7 +192,7 @@ int main(const int argc, const char** argv)
 					{
 						radiusSKI.push_back(FLT_MAX);
 					}
-					else if (incomparableset(PointSet, skyband[ski], skyband[pj], userpref)) // step (2)
+					else if (incomparableset(PointSet, skyband[ski], skyband[pj], w)) // step (2)
 					{
 						incompset.push_back(skyband[pj]);
 					}
@@ -193,7 +203,7 @@ int main(const int argc, const char** argv)
 				{
 					vector<float> tmpHS = computePairHP(dim, PointSet, skyband[ski], incompset[inpi]);
 					//compute the distance from w to hyperplane.
-					float tmpDis = computeDis(tmpHS, userpref);
+					float tmpDis = computeDis(tmpHS, w);
 					radiusSKI.push_back(tmpDis);
 				}
 				sort(radiusSKI.begin(), radiusSKI.end());
@@ -210,7 +220,7 @@ int main(const int argc, const char** argv)
 			}
 
 			int cnt = 0;
-			for (auto i = interval.begin(); i != interval.end(); ++i) 
+			for (auto i = interval.begin(); i != interval.end(); ++i)
 			{
 				cout << i->second << ", " << i->first << endl;
 				++cnt;
@@ -236,18 +246,18 @@ int main(const int argc, const char** argv)
 		at = clock();
 		for (int wi = 0; wi < w_num; wi++)
 		{
-			// weight vector for testing, we should remove the redundant one
-			vector<float> userpref(ws[wi].begin(), ws[wi].begin() + (ws[wi].size() - 1));
+            int k=ks[wi];
+            // weight vector for testing, we should remove the redundant one
 			vector<float> w(ws[wi].begin(), ws[wi].end());
 
 			cout << "Testing w: ";
-			for (int di = 0; di < userpref.size(); di++)
+			for (int di = 0; di < dim-1; di++)
 			{
-				cout << userpref[di] << ", ";
+				cout << w[di] << ", ";
 			}
-			cout << endl;
+			cout <<w.back()<< endl;
 
-			float rho = computeRho(dim, k, X, userpref, *rtree, PointSet);
+			float rho = computeRho(dim, k, X, w, *rtree, PointSet);
 			cout << "The inflection radius is: " << rho << endl;
 		}
 		ad = clock();

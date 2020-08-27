@@ -1,5 +1,6 @@
 #include "iPref.h"
-
+#include "qp_solver.h"
+#include "utk_math_lib.h"
 vector<long int> computeTopK(const int dim, float* PG[], vector<long int> skyband, vector<float>& weight, int k)
 {
 	multimap<float, long int> heap;
@@ -7,13 +8,10 @@ vector<long int> computeTopK(const int dim, float* PG[], vector<long int> skyban
 	for (int i = 0; i < skyband.size(); i++)
 	{
 		float score = 0;
-		float l1_sumWeight = 0;
-		for (int d = 0; d < dim-1; d++)
+		for (int d = 0; d < dim; d++)
 		{
 			score += (PG[skyband[i]][d] + PG[skyband[i]][d + dim]) / 2*weight[d];
-            l1_sumWeight += weight[d];
 		}
-        score += (PG[skyband[i]][dim - 1] + PG[skyband[i]][dim - 1 + dim]) / 2 * (1 - l1_sumWeight);
 
 		if (heap.size() < k)
 		{
@@ -62,8 +60,7 @@ bool IsPjdominatePi(const int dimen, float* PG[], long int pi, long int pj)
 
 bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weight)
 {
-	int dimen = weight.size() + 1;
-	float l1_wd = 0;
+	int dimen = weight.size();
 	float spi = 0, spj = 0;
 	int cpos = 0;
 	int cneg = 0;
@@ -76,11 +73,10 @@ bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weigh
 		pjv[d] = (PG[pj][d] + PG[pj][dimen + d]) / 2.0;
 	}
 
-	for (int i = 0; i < dimen - 1; i++)
+	for (int i = 0; i < dimen; i++)
 	{
 		spi += piv[i] * weight[i];
 		spj += pjv[i] * weight[i];
-        l1_wd += weight[i];
 
 		if (piv[i] <= pjv[i])
 		{
@@ -92,18 +88,6 @@ bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weigh
 		}
 	}
 
-	spi += (1 - l1_wd) * piv[dimen - 1];
-	spj += (1 - l1_wd) * pjv[dimen - 1];
-
-	if (piv[dimen - 1] <= pjv[dimen - 1])
-	{
-		cneg++;
-	}
-	else
-	{
-		cpos++;
-	}
-
 	if (spj >= spi && cneg != 0 && cpos != 0)
 		return true;
 	else
@@ -113,40 +97,34 @@ bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weigh
 
 vector<float> computePairHP(const int dimen, float* PG[], long int pi, long int pj)
 {
-	vector<float> retHS;
-	float piv[MAXDIMEN];
-	float pjv[MAXDIMEN];
-	for (int d = 0; d < dimen; d++)
-	{
-		piv[d] = (PG[pi][d] + PG[pi][dimen + d]) / 2.0;
-		pjv[d] = (PG[pj][d] + PG[pj][dimen + d]) / 2.0;
-	}
-
-	float pj_d = pjv[dimen - 1];
-	float pi_d = piv[dimen - 1];
-	for (int d = 0; d < dimen - 1; d++)
-	{
-		retHS.push_back((pjv[d] - pj_d) - (piv[d] - pi_d));
-	}
-	retHS.push_back(pi_d - pj_d);
+	vector<float> retHS(dimen);
+    for (int i = 0; i < dimen; ++i) {
+        retHS[i]=PG[pi][i]-PG[pj][i];
+    }
+//	float piv[MAXDIMEN];
+//	float pjv[MAXDIMEN];
+//	for (int d = 0; d < dimen; d++)
+//	{
+//		piv[d] = (PG[pi][d] + PG[pi][dimen + d]) / 2.0;
+//		pjv[d] = (PG[pj][d] + PG[pj][dimen + d]) / 2.0;
+//	}
+//
+//	float pj_d = pjv[dimen - 1];
+//	float pi_d = piv[dimen - 1];
+//	for (int d = 0; d < dimen - 1; d++)
+//	{
+//		retHS.push_back((pjv[d] - pj_d) - (piv[d] - pi_d));
+//	}
+//	retHS.push_back(pi_d - pj_d);
 	return retHS;
 }
 
+extern qp_solver qp;
 
 float computeDis(vector<float> tmpHS, vector<float> userpref)
 {
-	//TODO replace all these function to find correct radius of pi
-	float normVec = 0;
-	float dotRet = 0;
-	for (int i = 0; i < tmpHS.size() - 1; i++)
-	{
-		dotRet += userpref[i] * tmpHS[i];
-		normVec += tmpHS[i] * tmpHS[i];
-	}
-//  wrong
-//	return abs(dotRet - tmpHS[tmpHS.size() - 1]) / normVec;
-//  right for min distance of point to hyperplane
-    return abs(dotRet - tmpHS[tmpHS.size() - 1]) / sqrt(normVec);
+    float ret=qp.update_w_h_solve(userpref, tmpHS);
+    return ret;
 }
 
 bool sortbysec(const pair<long int, float> &a, const pair<long int, float> &b)
@@ -157,18 +135,18 @@ bool sortbysec(const pair<long int, float> &a, const pair<long int, float> &b)
 float computeradius(const int k, const int dim, long int pi, vector<float>& userpref, vector<long int>& incompSet, float* PG[])
 {
 	vector<float> radiusSKI;
-	vector<float> tmpHS;
+	vector<float> tmpHS(dim);
 	float tmpDis;
 
 	for (int ri = 0; ri < incompSet.size(); ri++)
 	{
 		if (IsPjdominatePi(dim, PG, pi, incompSet[ri]))  // for these dominators, we directly input as FLTMAX
 		{
-			radiusSKI.push_back(FLT_MAX);
+			radiusSKI.push_back(INFINITY);
 		}
 		else
 		{
-			tmpHS.clear();
+//			tmpHS.clear();
 			tmpHS = computePairHP(dim, PG, pi, incompSet[ri]);
 			tmpDis = computeDis(tmpHS, userpref);
 			radiusSKI.push_back(tmpDis);
@@ -269,38 +247,48 @@ int countNodeDominator(const int dim, float* pt, vector<long int>& incompSet, fl
 	return cnt;
 }
 
+bool v2_r_dominate_v1_float(float* &v1, float* &v2, const vector<float> &w, const vector<vector<c_float>> &r_domain_vec, const float &rho) {
+    for (const vector<c_float> &v:r_domain_vec) {
+//        vector<float> tmp_w = w + rho * v;
+//        if (v1 * tmp_w < v2 * tmp_w) {
+//            return false;
+//        }
+        vector<float> tmp_w(w.size());
+        for (int i = 0; i < tmp_w.size(); ++i) {
+            tmp_w[i]=w[i]+rho*v[i];
+        }
+        float s1=0, s2=0;
+        for (int i = 0; i < tmp_w.size(); ++i) {
+            s1+=tmp_w[i]*v1[i];
+        }
+        for (int i = 0; i < tmp_w.size(); ++i) {
+            s2+=tmp_w[i]*v2[i];
+        }
+        if(s1>s2){
+            return false;
+        }
+    }
+    return true;
+}
+
 int countNodeRDominator(const int dim, float* pt, const float radius, vector<float>& userpref, vector<long int>& incompSet, float* PG[]) // I am not sure it is correct if we only consider incompSet.
 {
-	//TODO
-	// we have troubles here, as we do not know how to compute the MBR of userpref with radius.
-	//int cnt = 0;
-	//float tmp = 0;
-	//float ptScore = 0, tmpScore = 0;
-	//bool isDominator = true;
-
-	//for (int i = 0; i < incompSet.size(); i++)
-	//{
-	//	isDominator = true;
-	//	ptScore = 0; // the score of pt
-	//	tmpScore = 0; // the score of incomparable records
-	//	for (int di = 0; di < dim; di++)
-	//	{
-	//		tmp = PG[incompSet[i]][di] + PG[incompSet[i]][dim + di] / 2.0;
-	//		pt
-	//	}
-	//	if (isDominator == true)
-	//	{
-	//		cnt++;
-	//	}
-	//}
-	//return cnt;
-	return 0;
+    int r_dominate_cnt=0;
+    for (const long int&v:incompSet) {
+        if(v2_r_dominate_v1_float(pt, PG[v], userpref, g_r_domain_vec, radius)){
+            ++r_dominate_cnt;
+//            if(r_dominate_cnt>=k){ // TODO use it to prune, pass k to this function
+//                break;
+//            }
+        }
+    }
+    return r_dominate_cnt;
 }
 
 
 float computeRho(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[])
 {
-	float raduis = FLT_MAX;
+	float raduis = INFINITY;
 	vector<pair<long int, float>> interval; // top-k result of w: T
 	vector<long int> incompSet;
 	pair<float, int> candidateOpt;
@@ -316,7 +304,7 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 	float tmpDis; // compute the inflection radius of point pt
 	float tmpRadius; // the inflection radius of point Pi.
 
-	heap.push(make_pair(INFINITY, a_rtree.m_memory.m_rootPageID));
+	heap.emplace(INFINITY, a_rtree.m_memory.m_rootPageID);
 
 	while (!heap.empty())
 	{
@@ -336,7 +324,7 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 				if (candidateRet.size() < X - k)  // Phase II
 				{
 					tmpRadius = computeradius(k, dimen, pageID - MAXPAGEID, userpref, incompSet, PG);
-					candidateRet.push(make_pair(tmpRadius, pageID-MAXPAGEID));
+					candidateRet.emplace(tmpRadius, pageID-MAXPAGEID);
 					incompSet.push_back(pageID - MAXPAGEID);
 				}
 				else   // Phase III
@@ -344,10 +332,10 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 					tmpRadius = computeradius(k, dimen, pageID - MAXPAGEID, userpref, incompSet, PG);
 					if (tmpRadius < candidateRet.top().first)
 					{
-						candidateRet.push(make_pair(tmpRadius, pageID - MAXPAGEID));
-						candidateOpt = candidateRet.top();
+						candidateRet.emplace(tmpRadius, pageID - MAXPAGEID);
 						candidateRet.pop();
-						raduis = (raduis < candidateOpt.first) ? candidateOpt.first : raduis;
+                        candidateOpt = candidateRet.top();
+                        raduis = candidateOpt.first;
 					}
 				}
 			}
@@ -367,20 +355,19 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 					}
 					//if (countNodeDominator(dimen, pt, incompSet, PG) < k)
 					Point a_pt(dimen, pt);
-					if (raduis == FLT_MAX)
+					if (raduis == INFINITY)
 					{
-						if (countDominator(a_rtree, PG, a_pt) < k)
-						{
-							heap.push(make_pair(tmpScore, node->m_entry[i]->m_id + MAXPAGEID));
-						}
+//						if (countDominator(a_rtree, PG, a_pt) < k)
+//						{
+							heap.emplace(tmpScore, node->m_entry[i]->m_id + MAXPAGEID);
+//						}
 					}
 					else
 					{
-						//TODO
-						//if (countNodeRDominator()) 
-						//{
-						//
-						//}
+                        if (countNodeRDominator(dimen, pt, raduis, userpref, incompSet, PG)<k)
+						{
+                            heap.emplace(tmpScore, node->m_entry[i]->m_id + MAXPAGEID);
+                        }
 						
 					}
 				}
@@ -397,10 +384,20 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 					}
 					//if (countNodeDominator(dimen, pt, incompSet, PG) < k)
 					Point a_pt(dimen, pt);
-					if (countDominator(a_rtree, PG, a_pt) < k)
-					{
-						heap.push(make_pair(tmpScore, node->m_entry[i]->m_id));
-					}
+                    if (raduis == INFINITY)
+                    {
+//                        if (countDominator(a_rtree, PG, a_pt) < k)
+//                        {
+                            heap.emplace(tmpScore, node->m_entry[i]->m_id);
+//                        }
+                    }
+                    else
+                    {
+                        if (countNodeRDominator(dimen, pt, raduis, userpref, incompSet, PG)<k)
+                        {
+                            heap.emplace(tmpScore, node->m_entry[i]->m_id);
+                        }
+                    }
 					
 				}
 			}
@@ -408,120 +405,3 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 	}
 	return raduis;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// comment Keming's code, please do not insert function into main.cpp
-// We use only left main function in it as it is more clear for others to read and compile the main structure of the code.
-// PLEASE do not use "auto"
-
-//template<typename V>
-//inline V proj(const V& u, const V &v)
-//{
-//	/*
-//	* <u, v> / <u, u> * u
-//	*/
-//	float dot = 0;
-//	assert(u.size() == v.size());
-//	for (int i = 0; i < u.size(); ++i) {
-//		dot += u[i] * v[i];
-//	}
-//	float u_mod2 = 0;
-//	for (int i = 0; i < u.size(); ++i) {
-//		u_mod2 += u[i] * u[i];
-//	}
-//	float length = dot / u_mod2;
-//	V ret(u);
-//	for (int i = 0; i < u.size(); ++i){
-//		ret[i] *= length;
-//	}
-//	return ret;
-//}
-//
-//template<typename V>
-//float domin_r_ij2(const V &w, const V &h_ij) {
-//	//TODO this fun is in utk_math_lib, merge utk_math_lib later
-//	//TODO when vertical point is out of domain, use QP solver
-//	/*
-//	*     V ones(h_ij.size(), 1);
-//	*     V ones_n=ones-proj(h_ij, ones);
-//	*     V d=proj(h_ij, WA)+proj(ones_n, WA);
-//	*     return sqrt(d*d);
-//	*/
-//	assert(h_ij.size() >= 2); //dim should be no less than 2
-//	V ones(h_ij.size(), 1.0);
-//	V ones_proj_on_hij = proj(h_ij, ones); //proj(h_ij, ones)
-//	for (int i = 0; i < ones.size(); ++i) {
-//		ones[i] -= ones_proj_on_hij[i];   // V ones_n=ones-proj(h_ij, ones);
-//	}
-//	V point_of_hij(h_ij.size(), 0.0);// point A
-//	float sum = -h_ij[0] + h_ij[1];
-//	if (sum != 0){
-//		point_of_hij[0] = h_ij[1] / sum;
-//		point_of_hij[1] = -h_ij[0] / sum; // normalize A such that \Sigma A[i]=1
-//	}
-//	else{
-//		point_of_hij[0] = 0.5;
-//		point_of_hij[1] = 0.5;
-//	}
-//	// point A init finish
-//	for (int k = 0; k < w.size(); ++k) {
-//		point_of_hij[k] -= w[k]; //A-->WA
-//	}
-//	V A_proj_on_hij = proj(h_ij, point_of_hij); //proj(h_ij, WA)
-//	V A_proj_on_onesn = proj(ones, point_of_hij); //proj(ones_n, WA)
-//	for (int j = 0; j < A_proj_on_hij.size(); ++j) {
-//		A_proj_on_hij[j] += A_proj_on_onesn[j]; //d=proj(h_ij, WA)+proj(ones_n, WA)
-//	}
-//	float WA_proj_on_hij_ones_mod2 = 0;
-//	for (int j = 0; j < A_proj_on_hij.size(); ++j) {
-//		WA_proj_on_hij_ones_mod2 += A_proj_on_hij[j] * A_proj_on_hij[j]; // d*d
-//	}
-//	return sqrt(WA_proj_on_hij_ones_mod2); //return sqrt(d*d)
-//}
