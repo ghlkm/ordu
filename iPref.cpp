@@ -218,9 +218,9 @@ int countDominator(Rtree& a_rtree, float* PG[], Point& a_pt)
 				for (int i = 0; i < node->m_usedspace; i++)
 					H.push(node->m_entry[i]->m_id);
 			}
-			delete e0;
+//			delete e0;
 		}
-		delete node;
+//		delete node;
 	}
 	return NoOfDominators;
 }
@@ -271,7 +271,8 @@ bool v2_r_dominate_v1_float(float* &v1, float* &v2, const vector<float> &w, cons
     return true;
 }
 
-int countNodeRDominator(const int dim, float* pt, const float radius, vector<float>& userpref, vector<long int>& incompSet, float* PG[]) // I am not sure it is correct if we only consider incompSet.
+int countNodeRDominator(const int dim, float* pt, const float radius,
+        vector<float>& userpref, vector<long int>& incompSet, float* PG[]) // I am not sure it is correct if we only consider incompSet.
 {
     int r_dominate_cnt=0;
     for (const long int&v:incompSet) {
@@ -327,6 +328,12 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 					candidateRet.emplace(tmpRadius, pageID-MAXPAGEID);
 					incompSet.push_back(pageID - MAXPAGEID);
 				}
+				else if(X<=k)
+				{
+                    assert(X==k);
+				    raduis=0;
+				    break;
+				}
 				else   // Phase III
 				{
 					tmpRadius = computeradius(k, dimen, pageID - MAXPAGEID, userpref, incompSet, PG);
@@ -353,14 +360,14 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 						pt[j] = node->m_entry[i]->m_hc.getCenter()[j];
 						tmpScore += pt[j] * userpref[j];
 					}
-					//if (countNodeDominator(dimen, pt, incompSet, PG) < k)
 					Point a_pt(dimen, pt);
 					if (raduis == INFINITY)
 					{
-//						if (countDominator(a_rtree, PG, a_pt) < k)
-//						{
+                        if (countNodeDominator(dimen, pt, incompSet, PG) < k)
+//                        if (countDominator(a_rtree, PG, a_pt) < k)
+						{
 							heap.emplace(tmpScore, node->m_entry[i]->m_id + MAXPAGEID);
-//						}
+						}
 					}
 					else
 					{
@@ -382,14 +389,14 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 						pt[j] = node->m_entry[i]->m_hc.getUpper()[j];
 						tmpScore += pt[j] * userpref[j];
 					}
-					//if (countNodeDominator(dimen, pt, incompSet, PG) < k)
 					Point a_pt(dimen, pt);
                     if (raduis == INFINITY)
                     {
+                        if (countNodeDominator(dimen, pt, incompSet, PG) < k)
 //                        if (countDominator(a_rtree, PG, a_pt) < k)
-//                        {
+                        {
                             heap.emplace(tmpScore, node->m_entry[i]->m_id);
-//                        }
+                        }
                     }
                     else
                     {

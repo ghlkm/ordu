@@ -50,7 +50,6 @@ int main(const int argc, const char** argv)
 	}
 
 	int dim = atoi(Param::read(argc, argv, "-d", ""));
-//	int k = atoi(Param::read(argc, argv, "-k", ""));
 	const char* datafile = Param::read(argc, argv, "-f", "");
 	const char* indexfile = Param::read(argc, argv, "-i", "");
 	const int X = atoi(Param::read(argc, argv, "-X", ""));
