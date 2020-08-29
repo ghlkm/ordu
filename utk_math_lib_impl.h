@@ -18,11 +18,11 @@ bool dominate(const V &v1, const V &v2) {
      * /tpara V vector, vector
      */
     assert(v1.size() == v2.size());
-    return dominate(v1, v2, v1.size());
+    return v1_dominate_v2(v1, v2, v1.size());
 }
 
 template<typename V, typename U>
-bool dominate(const V &v1, const U &v2, size_t size) {
+bool v1_dominate_v2(const V &v1, const U &v2, size_t size) {
     /*
      * /tpara V array, pointer
      */
@@ -47,7 +47,7 @@ double inflection_radius(const V &fetch, const VV &PG, vector<c_float> &w,
     vector<c_float> radius;
     vector<c_float> h_ij(dimen, 0);
     for (auto &j:fetch) {
-        if (dominate(PG[j], pdt, dimen)) {
+        if (v1_dominate_v2(PG[j], pdt, dimen)) {
             radius.push_back(INFINITY);
         } else {
             for (auto idx = 0; idx < dimen; ++idx) {
@@ -69,7 +69,7 @@ double inflection_radius(const V &fetch, const VV &PG, vector<c_float> &w,
     cnt = 0;
     while (radius.size() < k && iter != fetch.end()) {
         ++cnt;
-        if (dominate(PG[*iter], pdt, dimen)) {
+        if (v1_dominate_v2(PG[*iter], pdt, dimen)) {
             radius.insert(INFINITY);
         } else {
             for (auto idx = 0; idx < dimen; ++idx) {
@@ -84,7 +84,7 @@ double inflection_radius(const V &fetch, const VV &PG, vector<c_float> &w,
             break;
         } else {
             ++cnt;
-            if (dominate(PG[*iter], pdt, dimen)) {
+            if (v1_dominate_v2(PG[*iter], pdt, dimen)) {
                 radius.insert(INFINITY);
             } else {
                 for (auto idx = 0; idx < dimen; ++idx) {
@@ -112,7 +112,7 @@ double inflection_radius(const V &fetch, const VV &PG, vector<c_float> &w,
 template<typename A, typename B>
 double inflection_radius(vector<c_float> &w,
                          const A &the, const B &cmp, int dimen, int k) {
-    if (dominate(cmp, the, dimen)) {
+    if (v1_dominate_v2(cmp, the, dimen)) {
         return INFINITY;
     }
     vector<c_float> h_ij(dimen, 0);

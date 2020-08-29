@@ -4,4 +4,4 @@ the source code for the bounded size top-k query (r-kSkyband, UTK) problem.
 
 to run:
 
--d 4 -k 5 -X 20 -w 100 -p 400000 -m BB -W user4d200k.txt -f pdt4d1600k.txt -i idx4.txt
+-w 100 -d 4 -X 10 -f ./pdt/pdt4d400k.txt -m OA -W ./user/user4d200withK.txt -i ./idx/idx13.txt  

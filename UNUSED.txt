@@ -1,3 +1,24 @@
+vector<float> computePairHP(const int dimen, float* PG[], long int pi, long int pj)
+{
+	vector<float> retHS;
+	float piv[MAXDIMEN];
+	float pjv[MAXDIMEN];
+	for (int d = 0; d < dimen; d++)
+	{
+		piv[d] = (PG[pi][d] + PG[pi][dimen + d]) / 2.0;
+		pjv[d] = (PG[pj][d] + PG[pj][dimen + d]) / 2.0;
+	}
+
+	float pj_d = pjv[dimen - 1];
+	float pi_d = piv[dimen - 1];
+	for (int d = 0; d < dimen - 1; d++)
+	{
+		retHS.push_back((pjv[d] - pj_d) - (piv[d] - pi_d));
+	}
+	retHS.push_back(pi_d - pj_d);
+	return retHS;
+}
+
 vector<long int> computeTopK(const int dim, float* PG[], vector<long int> skyband, vector<float>& weight, int k)
 {
 	multimap<float, long int> heap;

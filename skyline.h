@@ -61,6 +61,8 @@ void computeHPforkskyband(const int dimen, float* PG[], Point& a_pt, vector<long
 
 int countDominee(float* PG[], Point& pt, int rid, const int& objCnt);
 
+bool dominatedByK(const int dimen, const float pt[], vector<long> kskyband, float* PG[], int k);
+
 void computeHP(const int dimen, float* PG[], Point& a_pt, const int objcnt, vector<long int>& newAddSL, const int NoofConstraints);
 
 // added for utk

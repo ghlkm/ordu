@@ -81,6 +81,34 @@ int countkDominator(const int dimen, const float pt[], vector<long> kskyband, fl
 	return count;
 }
 
+bool dominatedByK(const int dimen, const float pt[], vector<long> kskyband, float* PG[], int k)
+{
+    if (kskyband.empty())
+        return false;
+
+    int count = 0;
+    for (vector<long>::iterator iter = kskyband.begin(); iter != kskyband.end(); iter++)
+    {
+        long pid = *iter;
+        bool dominated = true;
+        for (int i = 0; i < dimen; i++)
+        {
+            if (PG[pid][i] + SIDELEN < pt[i])
+            {
+                dominated = false;
+                break;
+            }
+        }
+        if (dominated) {
+            count++;
+            if(count>=k){
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void aggregateRecords(Rtree& a_rtree)
 {
 	queue<long int> H;
@@ -1219,7 +1247,7 @@ void kskyband(const int dimen, Rtree& a_rtree, vector<long int>& kskyband, float
 	int pageID;
 	float dist_tmp;
 
-	heap.insert(PfltINT(INFINITY, a_rtree.m_memory.m_rootPageID));
+	heap.emplace(INFINITY, a_rtree.m_memory.m_rootPageID);
 
 	while (!heap.empty())
 	{
@@ -1232,7 +1260,7 @@ void kskyband(const int dimen, Rtree& a_rtree, vector<long int>& kskyband, float
 		{
 			for (int d = 0; d < dimen; d++)
 				pt[d] = (PG[pageID - MAXPAGEID][d] + PG[pageID - MAXPAGEID][d + dimen])/2;
-			if (countkDominator(dimen, pt, kskyband, PG) <= k)
+            if (!dominatedByK(dimen, pt, kskyband, PG, k))
 			{
 				kskyband.push_back(pageID - MAXPAGEID);
 			}
@@ -1249,10 +1277,10 @@ void kskyband(const int dimen, Rtree& a_rtree, vector<long int>& kskyband, float
 					{
 						pt[d] = node->m_entry[i]->m_hc.getLower()[d] + SIDELEN;
 					}
-					if (countkDominator(dimen, pt, kskyband, PG) <= k)
+					if (!dominatedByK(dimen, pt, kskyband, PG, k))
 					{
 						mindist = minDist(pt, ORIGNIN, dimen);
-						heap.insert(PfltINT(mindist, node->m_entry[i]->m_id + MAXPAGEID));
+						heap.emplace(mindist, node->m_entry[i]->m_id + MAXPAGEID);
 					}
 				}
 			}
@@ -1262,10 +1290,10 @@ void kskyband(const int dimen, Rtree& a_rtree, vector<long int>& kskyband, float
 				{
 					for (int d = 0; d < dimen; d++)
 						pt[d] = node->m_entry[i]->m_hc.getUpper()[d];
-					if (countkDominator(dimen, pt, kskyband, PG) <= k)
+                    if (!dominatedByK(dimen, pt, kskyband, PG, k))
 					{
 						mindist = minDist(pt, ORIGNIN, dimen);
-						heap.insert(PfltINT(mindist, node->m_entry[i]->m_id));
+						heap.emplace(mindist, node->m_entry[i]->m_id);
 					}
 				}
 			}

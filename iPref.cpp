@@ -15,8 +15,7 @@ vector<long int> computeTopK(const int dim, float* PG[], vector<long int> skyban
 
 		if (heap.size() < k)
 		{
-			heap.insert(multimap<float, long int>::value_type(score, skyband[i]));
-			//could use emplace， e.g. “heap.emplace(score, skyband[i])”
+			heap.emplace(score, skyband[i]);
 		}
 		else if (heap.size() == k && heap.begin()->first < score)
 		{
@@ -101,21 +100,6 @@ vector<float> computePairHP(const int dimen, float* PG[], long int pi, long int 
     for (int i = 0; i < dimen; ++i) {
         retHS[i]=PG[pi][i]-PG[pj][i];
     }
-//	float piv[MAXDIMEN];
-//	float pjv[MAXDIMEN];
-//	for (int d = 0; d < dimen; d++)
-//	{
-//		piv[d] = (PG[pi][d] + PG[pi][dimen + d]) / 2.0;
-//		pjv[d] = (PG[pj][d] + PG[pj][dimen + d]) / 2.0;
-//	}
-//
-//	float pj_d = pjv[dimen - 1];
-//	float pi_d = piv[dimen - 1];
-//	for (int d = 0; d < dimen - 1; d++)
-//	{
-//		retHS.push_back((pjv[d] - pj_d) - (piv[d] - pi_d));
-//	}
-//	retHS.push_back(pi_d - pj_d);
 	return retHS;
 }
 
@@ -146,7 +130,6 @@ float computeradius(const int k, const int dim, long int pi, vector<float>& user
 		}
 		else
 		{
-//			tmpHS.clear();
 			tmpHS = computePairHP(dim, PG, pi, incompSet[ri]);
 			tmpDis = computeDis(tmpHS, userpref);
 			radiusSKI.push_back(tmpDis);
@@ -272,20 +255,31 @@ bool v2_r_dominate_v1_float(float* &v1, float* &v2, const vector<float> &w, cons
 }
 
 int countNodeRDominator(const int dim, float* pt, const float radius,
-        vector<float>& userpref, vector<long int>& incompSet, float* PG[]) // I am not sure it is correct if we only consider incompSet.
+        vector<float>& userpref, vector<long int>& incompSet, float* PG[])
 {
     int r_dominate_cnt=0;
     for (const long int&v:incompSet) {
         if(v2_r_dominate_v1_float(pt, PG[v], userpref, g_r_domain_vec, radius)){
             ++r_dominate_cnt;
-//            if(r_dominate_cnt>=k){ // TODO use it to prune, pass k to this function
-//                break;
-//            }
         }
     }
     return r_dominate_cnt;
 }
 
+bool r_dominatedByK(const int dim, float* pt, const float radius,
+                        vector<float>& userpref, vector<long int>& incompSet, float* PG[], int k)
+{
+    int r_dominate_cnt=0;
+    for (const long int&v:incompSet) {
+        if(v2_r_dominate_v1_float(pt, PG[v], userpref, g_r_domain_vec, radius)){
+            ++r_dominate_cnt;
+            if(r_dominate_cnt>=k){
+                break;
+            }
+        }
+    }
+    return r_dominate_cnt>=k;
+}
 
 float computeRho(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[])
 {
@@ -318,7 +312,6 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 			if (interval.size() < k)  // Phase I
 			{
 				interval.emplace_back(pageID - MAXPAGEID, 0);
-				incompSet.push_back(pageID - MAXPAGEID);
 			}
 			else
 			{
@@ -326,11 +319,14 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 				{
 					tmpRadius = computeradius(k, dimen, pageID - MAXPAGEID, userpref, incompSet, PG);
 					candidateRet.emplace(tmpRadius, pageID-MAXPAGEID);
-					incompSet.push_back(pageID - MAXPAGEID);
+					if(candidateRet.size()==X-k)
+					{
+                        raduis = candidateRet.top().first;
+                    }
 				}
 				else if(X<=k)
 				{
-                    assert(X==k);
+                    assert(X==k);// if fails there is a problem in data
 				    raduis=0;
 				    break;
 				}
@@ -346,7 +342,8 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 					}
 				}
 			}
-		}  
+            incompSet.push_back(pageID - MAXPAGEID);
+        }
 		else // internal and leaf nodes processing
 		{
 			node = ramTree[pageID];
@@ -363,19 +360,17 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 					Point a_pt(dimen, pt);
 					if (raduis == INFINITY)
 					{
-                        if (countNodeDominator(dimen, pt, incompSet, PG) < k)
-//                        if (countDominator(a_rtree, PG, a_pt) < k)
+                        if (!dominatedByK(dimen, pt, incompSet, PG, k))
 						{
 							heap.emplace(tmpScore, node->m_entry[i]->m_id + MAXPAGEID);
 						}
 					}
 					else
 					{
-                        if (countNodeRDominator(dimen, pt, raduis, userpref, incompSet, PG)<k)
+                        if (!r_dominatedByK(dimen, pt, raduis, userpref, incompSet, PG, k))
 						{
                             heap.emplace(tmpScore, node->m_entry[i]->m_id + MAXPAGEID);
                         }
-						
 					}
 				}
 			}
@@ -392,15 +387,14 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 					Point a_pt(dimen, pt);
                     if (raduis == INFINITY)
                     {
-                        if (countNodeDominator(dimen, pt, incompSet, PG) < k)
-//                        if (countDominator(a_rtree, PG, a_pt) < k)
+                        if (!dominatedByK(dimen, pt, incompSet, PG, k))
                         {
                             heap.emplace(tmpScore, node->m_entry[i]->m_id);
                         }
                     }
                     else
                     {
-                        if (countNodeRDominator(dimen, pt, raduis, userpref, incompSet, PG)<k)
+                        if (!r_dominatedByK(dimen, pt, raduis, userpref, incompSet, PG, k))
                         {
                             heap.emplace(tmpScore, node->m_entry[i]->m_id);
                         }
@@ -412,3 +406,203 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 	}
 	return raduis;
 }
+
+
+class unknown_X_node{
+private:
+    int dim;
+    multiset<float> topK_dominate_radius;// size with k
+public:
+    const float *data;
+    int page_id;
+    bool fetched;
+    unknown_X_node(int d,  const float *dt, int pid){
+        dim=d;
+        data=dt;
+        page_id=pid;
+        fetched=false;
+    }
+    float radius_LB(){
+        return *topK_dominate_radius.begin();
+    }
+
+    void init_radius(vector<long int> &fetched_options, float **PointSet, vector<float> &w, int k){
+        for (int i = 0; i < k; ++i) {
+            update_radius(PointSet[fetched_options[i]], w);
+        }
+        for (int j = k; j < fetched_options.size(); ++j) {
+            update_radius_erase(PointSet[fetched_options[j]], w);
+        }
+    }
+
+    void update_radius(const float* other_option, vector<float> &w){
+        if(v1_dominate_v2(other_option, data, dim)){
+            topK_dominate_radius.insert(INFINITY);
+        }else{
+            vector<float> tmpHS(data, data+dim);
+            for (int i = 0; i < dim; ++i) {
+                tmpHS[i]-=other_option[i];
+            }
+            float tmpDis = computeDis(tmpHS, w);
+            topK_dominate_radius.insert(tmpDis);
+        }
+    }
+
+    void update_radius_erase(const float* other_option, vector<float> &w){
+        update_radius(other_option, w);
+        topK_dominate_radius.erase(topK_dominate_radius.begin());
+    }
+};
+
+float computeRho_unknownX_basic(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[])
+{
+    // phase (1) if get_next_time<=k, from BBS fetch topK
+    // phase (2) for each element in BBS, calculate their inflection radius and store them into unordered_map S
+    // phase (3) while the the top of S is not an option:
+    //          (a) pop and push node A out and into BBS heap
+    //          (b) if node A is an option:
+    //                  not update S
+    //                  marked A as fetched
+    //              else
+    //                  update S to remove node
+    //          (c) update all nodes in S such that not fetched by BBS yet (use a flag FETCH to record), update LB
+    vector<pair<int, float>> interval; // return
+    multimap<float, unknown_X_node*, greater<float>> heap; //BBS heap, <w\cdot node, node>, if node is an option then node=id+MAXPAGEID
+    unordered_set<unknown_X_node*> S;
+    vector<long int> incompSet;
+    float pt[MAXDIMEN];
+    float raduis = INFINITY;
+    vector<float> ones(dimen, 1);
+    vector<float> zeros(dimen, 0);
+    unknown_X_node *zeros_node=new unknown_X_node(dimen, zeros.data(), -1);
+    unknown_X_node *rt=new unknown_X_node(dimen, ones.data(), a_rtree.m_memory.m_rootPageID);
+    heap.emplace(INFINITY, rt);
+    pair<float, unknown_X_node*> LB(INFINITY, rt);
+    while (!heap.empty() && interval.size()<X)
+    {
+        float tmpScore = heap.begin()->first;
+        unknown_X_node *popped_option=heap.begin()->second;
+        popped_option->fetched=true;
+        int pageID = popped_option->page_id;
+        heap.erase(heap.begin());
+        if (pageID > MAXPAGEID)  // option processing
+        {
+            if (interval.size() < k)  // Phase (1)
+            {
+                interval.emplace_back(pageID - MAXPAGEID, 0);
+                if(interval.size()==k) // Phase (2)
+                {
+                    //init S
+                    for (pair<int, float> &option:interval) {
+                        incompSet.push_back(option.first);
+                    }
+                    for(pair<const float, unknown_X_node *> &ele:heap)
+                    {
+                        unknown_X_node *node=ele.second;
+                        node->init_radius(incompSet, PG, userpref, k);
+                        S.insert(node);
+                        if(node->radius_LB()<LB.first){
+                            LB.first=node->radius_LB();
+                            LB.second=node;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (interval.size() < X )  // should get_next X times
+                {
+                    //update all element in S
+                    assert(!S.empty());
+                    LB.first=popped_option->radius_LB();
+                    LB.second=popped_option;
+                    for (unknown_X_node* node:S) {
+                        if(!node->fetched){
+                            node->update_radius(popped_option->data, userpref);
+                        }
+                        if(node->radius_LB()<LB.first){
+                            LB.first=node->radius_LB();
+                            LB.second=node;
+                        }
+                    }
+
+                }
+                else if(X<=k)
+                {
+                    assert(X==k);// if fails there is a problem in data
+                    raduis=0;
+                    break;
+                }
+                else   // interval.size() == X, should begin to return
+                {
+                    raduis=interval.back().second;
+                    break;
+                }
+            }
+            incompSet.push_back(pageID - MAXPAGEID);
+        }
+        else // internal and leaf nodes processing
+        {
+            S.erase(popped_option);
+            delete(popped_option);
+            RtreeNode* node = ramTree[pageID];
+            if (node->isLeaf())
+            {
+                for (int i = 0; i < node->m_usedspace; i++)
+                {
+                    tmpScore = 0;
+                    for (int j = 0; j < dimen; j++)
+                    {
+                        pt[j] = node->m_entry[i]->m_hc.getCenter()[j];
+                        tmpScore += pt[j] * userpref[j];
+                    }
+                    unknown_X_node *tmp_node=new unknown_X_node(dimen, PG[node->m_entry[i]->m_id], node->m_entry[i]->m_id + MAXPAGEID);
+                    heap.emplace(tmpScore, tmp_node);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < node->m_usedspace; i++)
+                {
+                    tmpScore = 0;
+                    for (int j = 0; j < dimen; j++)
+                    {
+                        pt[j] = node->m_entry[i]->m_hc.getUpper()[j];
+                        tmpScore += pt[j] * userpref[j];
+                    }
+                    const float *ptr=node->m_entry[i]->m_hc.getUpper().m_coor;
+                    unknown_X_node *tmp_node=new unknown_X_node(dimen, ptr, node->m_entry[i]->m_id);
+                    heap.emplace(tmpScore, tmp_node);
+                }
+            }
+
+        }
+        while(LB.second->page_id>MAXPAGEID && LB.second->fetched){
+            // if LB is an option and is updated, add it to result list "interval"
+            interval.emplace_back(LB.second->page_id-MAXPAGEID, LB.second->radius_LB());
+            S.erase(LB.second);
+            delete(LB.second);
+            if(interval.size()==X){
+                raduis=interval.back().second;
+                break;
+            }
+            LB.first=INFINITY;
+            LB.second=zeros_node;
+            for (unknown_X_node* node:S) {
+                if(node->radius_LB()<LB.first){
+                    LB.first=node->radius_LB();
+                    LB.second=node;
+                }
+            }
+        }
+    }
+
+    for(unknown_X_node *node:S){
+        delete (node);
+    }
+    delete(zeros_node);
+
+    return raduis;
+}
+
+

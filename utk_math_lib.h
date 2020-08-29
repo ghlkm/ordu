@@ -41,7 +41,7 @@ double inflection_radius(const V &fetch, const VV &PG, vector<c_float> &w,
                          const A &pdt, int dimen, int k, const double &rou);
 
 template<typename V, typename U>
-bool dominate(const V &v1, const U &v2, size_t size);
+bool v1_dominate_v2(const V &v1, const U &v2, size_t size);
 
 template<typename V>
 double domin_r_ij2(const V &w, const V &h_ij);

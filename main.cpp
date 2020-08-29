@@ -207,10 +207,7 @@ int main(const int argc, const char** argv)
 				}
 				sort(radiusSKI.begin(), radiusSKI.end());
 				assert(radiusSKI.size() >= k);
-				if (radiusSKI.size() >= k)
-				{
-					interval.emplace_back(skyband[ski], radiusSKI[radiusSKI.size() - k]);
-				}
+				interval.emplace_back(skyband[ski], radiusSKI[radiusSKI.size() - k]);
 			}
 			assert(interval.size() >= X);
 			sort(interval.begin(), interval.end(), sortbysec);
@@ -267,7 +264,37 @@ int main(const int argc, const char** argv)
 	// inclremental version, without known X
 	// We do not have exact X, we need tell the user the radius rho and its corresponding T
 	// It is similar to optimized algorithm, however, it computes incrementally, from rho = 0 to infinity, the size T is from k to k-skyband.
-	
+    if (strcmp(methodName, "UB") == 0) // unknown X basic
+    {
+        // (1) if get_next_time<=k, from BBS fetch topK
+        // (2) for each element in BBS, calculate their inflection radius and store them into heap S (so we can know whose inflection radius is smallest)
+        // (3) while the the top of S is not an option:
+        //       (a) pop and push node A out and into BBS heap
+        //       (b) if node A is an option:
+        //             not update S
+        //             marked A as fetched
+        //           else
+        //             update S to remove node
+        //           update all nodes in S such that not fetched by BBS yet (use a flag FETCH to record)
+        at = clock();
+        for (int wi = 0; wi < w_num; wi++)
+        {
+            int k=ks[wi];
+            // weight vector for testing, we should remove the redundant one
+            vector<float> w(ws[wi].begin(), ws[wi].end());
+            cout << "Testing w: ";
+            for (int di = 0; di < dim-1; di++)
+            {
+                cout << w[di] << ", ";
+            }
+            cout <<w.back()<< endl;
+
+            float rho = computeRho(dim, k, X, w, *rtree, PointSet);
+            cout << "The inflection radius is: " << rho << endl;
+        }
+        ad = clock();
+        cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+    }
 
 	return 0;
 }
