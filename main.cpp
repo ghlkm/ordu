@@ -289,7 +289,7 @@ int main(const int argc, const char** argv)
             }
             cout <<w.back()<< endl;
 
-            float rho = computeRho(dim, k, X, w, *rtree, PointSet);
+            float rho = computeRho_unknownX_basic(dim, k, X, w, *rtree, PointSet);
             cout << "The inflection radius is: " << rho << endl;
         }
         ad = clock();
