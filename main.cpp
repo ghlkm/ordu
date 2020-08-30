@@ -296,5 +296,30 @@ int main(const int argc, const char** argv)
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
     }
 
+    // inclremental version, without known X
+    // We do not have exact X, we need tell the user the radius rho and its corresponding T
+    // It is similar to optimized algorithm, however, it computes incrementally, from rho = 0 to infinity, the size T is from k to k-skyband.
+    if (strcmp(methodName, "UA") == 0) // unknown X efficient
+    {
+        at = clock();
+        for (int wi = 0; wi < w_num; wi++)
+        {
+            int k=ks[wi];
+            // weight vector for testing, we should remove the redundant one
+            vector<float> w(ws[wi].begin(), ws[wi].end());
+            cout << "Testing w: ";
+            for (int di = 0; di < dim-1; di++)
+            {
+                cout << w[di] << ", ";
+            }
+            cout <<w.back()<< endl;
+
+            float rho = computeRho_unknownX_efficient(dim, k, X, w, *rtree, PointSet);
+            cout << "The inflection radius is: " << rho << endl;
+        }
+        ad = clock();
+        cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+    }
+
 	return 0;
 }
