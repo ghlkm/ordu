@@ -404,7 +404,11 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 			}
 		}
 	}
-	return raduis;
+	if(interval.size()+candidateRet.size()<X){
+	    return INFINITY;
+	}else{
+        return raduis;
+    }
 }
 
 
@@ -527,12 +531,13 @@ float computeRho_unknownX_basic(const int dimen, const int k, const int X, vecto
                 {
                     //update all element in S
                     assert(!S.empty());
-                    for (unknown_X_node* node:S) {
-                        if (!node->fetched) {
-                            node->update_radius(popped_node->data, userpref);
+                    for (unknown_X_node* node:S)
+                    {
+                        if (!node->fetched)
+                        {
+                            node->update_radius_erase(popped_node->data, userpref);
                         }
                     }
-
                 }
                 else if(X<=k)
                 {
@@ -651,7 +656,7 @@ float computeRho_unknownX_efficient(const int dimen, const int k, const int X, v
     multimap<RADIUS, NODE_PTR, less<float>> C; // min_heap based on inflection radius, candidate list
     vector<PG_IDX_L> incompSet;
     float pt[MAXDIMEN];
-    float raduis = INFINITY;
+    float radius = INFINITY;
     vector<float> ones(dimen, 1);
     NODE_PTR rt=new unknown_X_node(dimen, ones.data(), a_rtree.m_memory.m_rootPageID);
     heap.emplace(INFINITY, rt);
@@ -696,12 +701,12 @@ float computeRho_unknownX_efficient(const int dimen, const int k, const int X, v
                 else if(X<=k)
                 {
                     assert(X==k);// if fails there is a problem in data
-                    raduis=0;
+                    radius=0;
                     break;
                 }
                 else   // interval.size() == X, should begin to return
                 {
-                    raduis=interval.back().second;
+                    radius=interval.back().second;
                     break;
                 }
             }
@@ -796,7 +801,7 @@ float computeRho_unknownX_efficient(const int dimen, const int k, const int X, v
                     C.erase(C.begin());
                 }
                 if (interval.size() >= X) {
-                    raduis = interval.back().second;
+                    radius = interval.back().second;
                 }
                 break;
             }
@@ -830,11 +835,10 @@ float computeRho_unknownX_efficient(const int dimen, const int k, const int X, v
     for(pair<const RADIUS , NODE_PTR> node_iter:C){
         delete (node_iter.second);
     }
-    if(interval.size()==X && X>k){
-        raduis=interval.back().second;
+    if(interval.size()==X && X>=k){
+        radius=interval.back().second;
     }
-
-    return raduis;
+    return radius;
 }
 
 
