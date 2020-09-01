@@ -412,71 +412,63 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 }
 
 
-class unknown_X_node{
-private:
-    int dim;
-    multiset<float> topK_dominate_radius;// size with k
-public:
-    int tau;// used in unknown efficient
-    const float *data;
-    int page_id;
-    bool fetched;
-    unknown_X_node(int d,  const float *dt, int pid){
+
+unknown_X_node::unknown_X_node(int d,  const float *dt, int pid){
         dim=d;
         data=dt;
         page_id=pid;
         fetched=false;
         tau=0;// used in unknown efficient
     }
-    float radius_LB(){
+
+float unknown_X_node::radius_LB(){
 //        assert(!topK_dominate_radius.empty());
-        return *topK_dominate_radius.begin();
-    }
+    return *topK_dominate_radius.begin();
+}
 
-    void init_radius(vector<long int> &fetched_options, float **PointSet, vector<float> &w, int k, float rho=INFINITY){
-        for (int i = 0; i < k; ++i) {
-            update_radius(PointSet[fetched_options[i]], w);
+void unknown_X_node::init_radius(vector<long int> &fetched_options, float **PointSet, vector<float> &w, int k, float rho){
+    for (int i = 0; i < k; ++i) {
+        update_radius(PointSet[fetched_options[i]], w);
+    }
+    for (int j = k; j < fetched_options.size(); ++j) {
+        if(this->radius_LB()>=rho){
+            break;
         }
-        for (int j = k; j < fetched_options.size(); ++j) {
-            if(this->radius_LB()>=rho){
-                break;
-            }
-            update_radius_erase(PointSet[fetched_options[j]], w);
-        }
+        update_radius_erase(PointSet[fetched_options[j]], w);
     }
+}
 
-    inline bool update(int need_to_update) const{// used in unknown efficient
-        return this->tau>=need_to_update;
-    }
+inline bool unknown_X_node::update(int need_to_update) const{// used in unknown efficient
+    return this->tau>=need_to_update;
+}
 
-    void update_radius(vector<long int>::iterator begin, vector<long int>::iterator end, float **PointSet, vector<float> &w, float rho=INFINITY){
-        for (; begin!=end; ++begin) {
-            update_radius_erase(PointSet[*begin], w);
-            if(this->radius_LB()>=rho){ // lazy update // used in unknown efficient
-                return;
-            }
-        }
-    }
-
-    void update_radius(const float* other_option, vector<float> &w){
-        ++tau;// used in unknown efficient
-        if(v1_dominate_v2(other_option, data, dim)){
-            topK_dominate_radius.insert(INFINITY);
-        }else{
-            vector<float> tmpHS(data, data+dim);
-            for (int i = 0; i < dim; ++i) {
-                tmpHS[i]-=other_option[i];
-            }
-            float tmpDis = computeDis(tmpHS, w);
-            topK_dominate_radius.insert(tmpDis);
+void unknown_X_node::update_radius(vector<long int>::iterator begin, vector<long int>::iterator end, float **PointSet, vector<float> &w, float rho){
+    for (; begin!=end; ++begin) {
+        update_radius_erase(PointSet[*begin], w);
+        if(this->radius_LB()>=rho){ // lazy update // used in unknown efficient
+            return;
         }
     }
+}
 
-    void update_radius_erase(const float* other_option, vector<float> &w){
-        update_radius(other_option, w);
-        topK_dominate_radius.erase(topK_dominate_radius.begin());
+void unknown_X_node::update_radius(const float* other_option, vector<float> &w){
+    ++tau;// used in unknown efficient
+    if(v1_dominate_v2(other_option, data, dim)){
+        topK_dominate_radius.insert(INFINITY);
+    }else{
+        vector<float> tmpHS(data, data+dim);
+        for (int i = 0; i < dim; ++i) {
+            tmpHS[i]-=other_option[i];
+        }
+        float tmpDis = computeDis(tmpHS, w);
+        topK_dominate_radius.insert(tmpDis);
     }
-};
+}
+
+void unknown_X_node::update_radius_erase(const float* other_option, vector<float> &w){
+    update_radius(other_option, w);
+    topK_dominate_radius.erase(topK_dominate_radius.begin());
+}
 
 float computeRho_unknownX_basic(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[])
 {
@@ -778,9 +770,6 @@ float computeRho_unknownX_efficient(const int dimen, const int k, const int X, v
                 // a lazy update with tau
                 qnode->update_radius(incompSet.begin() + qnode->tau, incompSet.end(), PG, userpref,
                                      possible_next->first);
-//                qnode->update_radius(incompSet.begin() + qnode->tau, incompSet.end(), PG, userpref,
-//                                    INFINITY);
-
                 Q.erase(Q.begin());
                 Q.emplace(qnode->radius_LB(), qnode);
                 while (!Q.empty() && S.find(Q.begin()->second) == S.end()) { // a lazy update with S
@@ -840,5 +829,150 @@ float computeRho_unknownX_efficient(const int dimen, const int k, const int X, v
     }
     return radius;
 }
+
+
+
+unknown_x_efficient::unknown_x_efficient(const int dim, const int K, vector<float> &userPref, Rtree &aRtree, float *pg[]
+) : a_rtree(aRtree) {
+    this->dimen=dim;
+    this->k=K;
+    this->userpref=userPref;
+    this->PG=pg;
+    vector<float> ones(dimen, 1);
+    NODE_PTR rt=new unknown_X_node(dimen, ones.data(), a_rtree.m_memory.m_rootPageID);
+    heap.emplace(INFINITY, rt);
+}
+
+unknown_x_efficient::~unknown_x_efficient(){
+    for(NODE_PTR node:S){
+        delete (node);
+    }
+    for(pair<const RADIUS , NODE_PTR> node_iter:C){
+        delete (node_iter.second);
+    }
+}
+
+pair<int, float> unknown_x_efficient::get_next() {
+    while (!heap.empty() || !C.empty()) {
+        if (interval.size() >= k && !C.empty()) {
+            _Rb_tree_iterator<pair<const RADIUS, NODE_PTR>> possible_next = C.begin();
+
+            // a lazy update with S
+            while (!Q.empty() && S.find(Q.begin()->second) == S.end()) {
+                if (Q.begin()->second->page_id <= MAXPAGEID) { // directly delete an inter node
+                    delete (Q.begin()->second);
+                }
+                Q.erase(Q.begin());
+            }
+
+            // make sure the top of Q is updated or its inflection radius is larger than possible_next.inflection radius
+            while (!Q.empty() &&
+                   !(Q.begin()->second->update(incompSet.size()) || Q.begin()->first >= possible_next->first)) {
+                NODE_PTR qnode = Q.begin()->second;
+
+                // a lazy update with tau
+                qnode->update_radius(incompSet.begin() + qnode->tau, incompSet.end(), PG, userpref,
+                                     possible_next->first);
+
+                Q.erase(Q.begin());
+                Q.emplace(qnode->radius_LB(), qnode);
+                while (!Q.empty() && S.find(Q.begin()->second) == S.end()) { // a lazy update with S
+                    if (Q.begin()->second->page_id <= MAXPAGEID) { // directly delete an inter node
+                        delete (Q.begin()->second);
+                    }
+                    Q.erase(Q.begin());
+                }
+            }
+
+            // if Q empty, add element in C into interval one by one and return this function
+            // if Q not empty, then check whether possible_next.if_r is lower than Q.top.if_r
+            // if possible_next.if_r is lower than Q.top.if_r:
+            //     add possible_next into result list "interval"
+            // else:
+            //     continue fetch nodes or options with BBS
+            if (Q.empty() || possible_next->first <= Q.begin()->first) {
+                // begin getting ready to return
+                interval.emplace_back(C.begin()->second->page_id - MAXPAGEID, C.begin()->first);
+                delete (C.begin()->second);
+                C.erase(C.begin());
+                return interval.back();
+            }
+        }
+        NODE_PTR popped_node = heap.begin()->second;
+        PAGE_ID pageID = popped_node->page_id;
+        heap.erase(heap.begin());
+        if (interval.size() >= k) {
+            S.erase(popped_node);
+        }
+        if (pageID > MAXPAGEID)  // option processing
+        {
+            if (interval.size() < k)  // Phase (1)
+            {
+                interval.emplace_back(pageID - MAXPAGEID, 0);
+                if (interval.size() == k) // Phase (2)
+                {
+                    //init S, init Q
+                    for (pair<PG_IDX, RADIUS> &option:interval) {
+                        incompSet.push_back(option.first);
+                    }
+                    for (pair<const DOT, NODE_PTR> &ele:heap) {
+                        NODE_PTR node = ele.second;
+                        node->init_radius(incompSet, PG, userpref, k);
+                        S.insert(node);
+                        Q.emplace(node->radius_LB(), node);
+                    }
+                }
+                return interval.back();
+            } else {
+                popped_node->update_radius(incompSet.begin() + popped_node->tau, incompSet.end(), PG, userpref);
+                C.emplace(popped_node->radius_LB(), popped_node);
+                incompSet.push_back(pageID - MAXPAGEID);
+            }
+        } else // internal and leaf nodes processing
+        {
+            float possible_next_radius = INFINITY;
+            if (!C.empty()) {
+                possible_next_radius = C.begin()->first;
+            }
+            RtreeNode *node = ramTree[pageID];
+            if (node->isLeaf()) {
+                for (int i = 0; i < node->m_usedspace; i++) {
+                    DOT tmpScore = 0;
+                    for (int j = 0; j < dimen; j++) {
+                        pt[j] = node->m_entry[i]->m_hc.getCenter()[j];
+                        tmpScore += pt[j] * userpref[j];
+                    }
+                    unknown_X_node *tmp_node = new unknown_X_node(dimen, PG[node->m_entry[i]->m_id],
+                                                                  node->m_entry[i]->m_id + MAXPAGEID);
+                    heap.emplace(tmpScore, tmp_node);
+                    if (interval.size() >= k) {
+                        S.insert(tmp_node);
+                        tmp_node->init_radius(incompSet, PG, userpref, k, possible_next_radius);
+                        Q.emplace(tmp_node->radius_LB(), tmp_node);
+                    }
+                }
+            } else {
+                for (int i = 0; i < node->m_usedspace; i++) {
+                    DOT tmpScore = 0;
+                    for (int j = 0; j < dimen; j++) {
+                        pt[j] = node->m_entry[i]->m_hc.getUpper()[j];
+                        tmpScore += pt[j] * userpref[j];
+                    }
+                    const float *ptr = node->m_entry[i]->m_hc.getUpper().m_coor;
+                    unknown_X_node *tmp_node = new unknown_X_node(dimen, ptr, node->m_entry[i]->m_id);
+                    heap.emplace(tmpScore, tmp_node);
+                    if (interval.size() >= k) {
+                        S.insert(tmp_node);
+                        tmp_node->init_radius(incompSet, PG, userpref, k, possible_next_radius);
+                        Q.emplace(tmp_node->radius_LB(), tmp_node);
+                    }
+                }
+            }
+
+        }
+
+    }
+}
+
 
 

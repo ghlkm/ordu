@@ -42,4 +42,55 @@ float computeRho_unknownX_efficient(const int dimen, const int k, const int X, v
 // compute the radius in phase 2, optimized algorithm
 float computeradius(const int k, const int dim, long int pi, vector<float>& userpref, vector<long int>& incompSet, float* PG[]);
 
+class unknown_X_node{
+private:
+    int dim;
+    multiset<float> topK_dominate_radius;// size with k
+public:
+    int tau;// used in unknown efficient
+    const float *data;
+    int page_id;
+    bool fetched;
+    unknown_X_node(int d,  const float *dt, int pid);
+    float radius_LB();
+
+    void init_radius(vector<long int> &fetched_options, float **PointSet, vector<float> &w, int k, float rho=INFINITY);
+
+    inline bool update(int need_to_update) const;
+
+    void update_radius(vector<long int>::iterator begin, vector<long int>::iterator end, float **PointSet, vector<float> &w, float rho=INFINITY);
+
+    void update_radius(const float* other_option, vector<float> &w);
+
+    void update_radius_erase(const float* other_option, vector<float> &w);
+};
+
+class unknown_x_efficient {
+    typedef float RADIUS;  // is the inflection radius
+    typedef int PAGE_ID;  // page id in rtree
+    typedef int PG_IDX;  // idx in PG
+    typedef long PG_IDX_L;  // idx in PG
+    typedef float DOT;   // is the result of dot product with w
+    typedef unknown_X_node *NODE_PTR;
+
+    multimap<DOT, NODE_PTR, greater<float>> heap; //BBS max_heap, <w\cdot node, node>, if node is an option then node=id+MAXPAGEID
+    unordered_set<NODE_PTR> S; // reflect which nodes and options in BBS
+    multimap<RADIUS, NODE_PTR, less<float>> Q; // min_heap based on inflection radius, lazy update for S
+    multimap<RADIUS, NODE_PTR, less<float>> C; // min_heap based on inflection radius, candidate list
+    vector<PG_IDX_L> incompSet;
+    float pt[MAXDIMEN];
+    int dimen;
+    int k;
+    vector<float> userpref;
+    Rtree &a_rtree;
+    float **PG;
+public:
+    vector<pair<PG_IDX, RADIUS>> interval; // return
+
+    unknown_x_efficient(const int dim, const int K, vector<float> &userPref, Rtree &aRtree, float *pg[]);
+
+    pair<int, float> get_next();
+
+    ~unknown_x_efficient();
+};
 #endif

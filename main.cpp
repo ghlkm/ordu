@@ -321,5 +321,31 @@ int main(const int argc, const char** argv)
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
     }
 
+    if (strcmp(methodName, "UA_GN") == 0) // unknown X efficient get_next version
+    {
+        at = clock();
+        for (int wi = 0; wi < w_num; wi++)
+        {
+            int k=ks[wi];
+            // weight vector for testing, we should remove the redundant one
+            vector<float> w(ws[wi].begin(), ws[wi].end());
+            cout << "Testing w: ";
+            for (int di = 0; di < dim-1; di++)
+            {
+                cout << w[di] << ", ";
+            }
+            cout <<w.back()<< endl;
+
+            unknown_x_efficient obj(dim, k, w, *rtree, PointSet);
+            for (int i = 0; i < X; ++i) {
+                obj.get_next();
+            }
+            float rho = obj.interval.back().second;
+            cout << "The inflection radius is: " << rho << endl;
+        }
+        ad = clock();
+        cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+    }
+
 	return 0;
 }
