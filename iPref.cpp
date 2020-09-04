@@ -1,6 +1,7 @@
 #include "iPref.h"
 #include "qp_solver.h"
 #include "utk_math_lib.h"
+#include "qhull_user.h"
 vector<long int> computeTopK(const int dim, float* PG[], vector<long int> skyband, vector<float>& weight, int k)
 {
 	multimap<float, long int> heap;
@@ -998,42 +999,135 @@ pair<int, float> unknown_x_efficient::get_next() {
     return {-1, INFINITY};
 }
 
+
 vector<vector<int>> get_first_k_layers(vector<vector<float>> &pointSet){
     vector<vector<int>> ret;
     //TODO
     return ret;
 }
 
-void expand_convex_hull(vector<int> &CH1,vector<int> &not_CH1, vector<vector<float>> &pointSet, int new_ele){
+void expand_convex_hull(Qhull &qhull_obj,vector<int> &not_CH1, float* new_ele, int dim, vector<vector<float>> &square_vertexes){
     //TODO
+    // \para not_CH1, record the options the doesn't belond to CH_1
 }
 
-//void utk_efficient(vector<vector<float>> &PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k){
-//    // 1. calculate first k convex hulls
-////    vector<vector<int>> k_layers=get_first_k_layers(PointSet);
-//
-////    unknown_x_efficient(const int dim, const int K, vector<float> &userPref, Rtree &aRtree, float **pg);
-//
-//    unknown_x_efficient get_next_obj(dim, 1, w, *rtree, reinterpret_cast<float **>(PointSet.data()));
-//    vector<int> CH1;
-//    vector<int> not_CH1;
-//    pair<int, float> next={-1, INFINITY};
-//    while(CH1.size()<X){
-//        next=get_next_obj.get_next();
-//        expand_convex_hull(CH1, not_CH1,PointSet, next.first);
-//    }
-//    float rho_star=next.second;
-//
-//    vector<pair<long int, float>> interval;
-//    computeRho(dim, k, INFINITY, w, *rtree, reinterpret_cast<float **>(PointSet.data()), interval, rho_star);
-//    vector<int> rskyband_CS;
-//    for (pair<long int, float> &p:interval) {
-//        rskyband_CS.push_back(p.first);
-//    }
-//
-//    // min_heap Q <min_dist(w,  C), {top-?, option, C}>
-//    int top1_id=interval.begin()->first;
-//    vector<int> Ap_top1=(CH1, top1_id);
-//
-//
-//}
+
+
+void build_qhull(Qhull &qhull_obj, const vector<int> &topX, float **PG, vector<vector<float>> &square_vertexes){
+    // TODO
+
+}
+
+void update_square_vertexes(vector<vector<float>> &square_vertexes, float *new_ele){
+    // TODO
+}
+
+vector<Qhull> k_convex_hull(vector<int> &idx, float** &pointSet){
+
+}
+
+class region{
+public:
+    vector<int> topk;
+    float radius;
+    vector<vector<float>> cone;
+};
+
+void topRegions(vector<vector<float>> &parent_region, vector<int> &CH_upd, vector<Qhull> &convex_layers,
+                multimap<float, region*> &id_radius, int deepest_layer){
+    //dfs
+}
+
+vector<int> qhull_to_idx(Qhull &q){
+
+}
+
+vector<vector<float>> points_to_halfspace(vector<vector<float>> &points){
+
+}
+
+void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
+               vector<pair<int, float>> &utk_ret,
+               vector<pair<vector<int>, vector<vector<float>>>> &utk_cones_ret){
+
+    // 2 return value
+    // 1. array of <option, topk_radius>
+    // 2. array of <topk, region>
+    // "apply k=1"
+    unknown_x_efficient get_next_obj(dim, 1, w, *rtree, PointSet);
+    pair<int, float> next={-1, INFINITY};
+    //fetch top X options
+    vector<int> topX;
+    while(topX.size()<X){
+        next=get_next_obj.get_next();
+    }
+    // qhull class in lib qhull
+    Qhull qhull_obj;
+    vector<vector<float>> square_vertexes;
+
+    // init qhull with top X options
+    build_qhull(qhull_obj, topX, PointSet, square_vertexes);
+
+    // a 3-d example of square_vertex, square_vertex_cnt=4
+    // point 0: (max(points[:, 0]), 0, 0)
+    // point 1: (0, max(points[:, 1]), 0)
+    // point 2: (0, 0, max(points[:, 1]))
+    // point 3: \vec{0}
+    const int square_vertex_cnt=dim+1;
+
+    // rho_star is computed as when CH_1.size()=X
+    vector<int> not_CH1;
+    while(qhull_obj.vertexCount()-square_vertex_cnt<X){ // while(CH_1.size<X)
+        next=get_next_obj.get_next();
+        update_square_vertexes(square_vertexes, PointSet[next.first]);
+        expand_convex_hull(qhull_obj, not_CH1, PointSet[next.first], dim, square_vertexes);
+    }
+    // for now, qhull_obj contains points 0~3 and convex hull vertexes
+    float rho_star=next.second;
+
+    // use known X version code to fetch rskyband options,
+    // bear in mind such that we init \rho as \rho_star and X as INFINITY
+    vector<pair<long int, float>> interval;
+    computeRho(dim, k, INFINITY, w, *rtree, PointSet, interval, rho_star);
+    vector<int> rskyband_CS;
+    for (pair<long int, float> &p:interval) {
+        rskyband_CS.push_back(p.first);
+    }
+    vector<Qhull> topk_layers=k_convex_hull(rskyband_CS, PointSet);
+    vector<int> top1_idxes=qhull_to_idx(topk_layers[0]);
+    vector<vector<float>> tmp;
+    for (vector<c_float> &e:g_r_domain_vec) {
+        tmp.push_back(w+e);
+    }
+    vector<vector<float>> begin_region=points_to_halfspace(tmp);
+    multimap<float, region*> id_radius; // <radius, region>
+//    class region{
+//    public:
+//        vector<int> topk;
+//        float radius;
+//        vector<vector<float>> cone;
+//    };
+    topRegions(begin_region, top1_idxes, topk_layers, id_radius,  0);
+
+    // until X different options
+//    vector<pair<int, float>> utk_ret;
+//    vector<pair<vector<int>, vector<vector<float>>>> utk_cones_ret;
+    assert(!id_radius.empty());
+    _Rb_tree_iterator<pair<const float, region *>> iter=id_radius.begin();
+    unordered_set<int> options;
+    while(options.size()<X){
+        bool flag=false;
+        for (int option_idx: iter->second->topk) {
+            if(options.find(option_idx)==options.end()){ // new option
+               options.insert(option_idx);
+               utk_ret.emplace_back(option_idx, iter->first);
+               flag=true;
+            }
+        }
+        if(flag){
+            utk_cones_ret.emplace_back(iter->second->topk, iter->second->cone);
+        }
+        ++iter;
+    }
+
+}
