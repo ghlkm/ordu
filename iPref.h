@@ -31,10 +31,11 @@ float computeDis(vector<float> tmpHS, vector<float> userpref);
 bool sortbysec(const pair<long int, float> &a, const pair<long int, float> &b);
 
 // optimized algorithm
-float computeRho(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[]);
+float computeRho(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[],
+         vector<pair<long int, float>> &interval, float radius = INFINITY);
 
 // unknown x baseline
-float computeRho_unknownX_basic(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[]);
+float computeRho_unknownX_basic(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float** PG);
 
 // unknown x efficient
 float computeRho_unknownX_efficient(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[]);
@@ -87,7 +88,7 @@ class unknown_x_efficient {
 public:
     vector<pair<PG_IDX, RADIUS>> interval; // return
 
-    unknown_x_efficient(const int dim, const int K, vector<float> &userPref, Rtree &aRtree, float *pg[]);
+    unknown_x_efficient(const int dim, int K, vector<float> &userPref, Rtree &aRtree, float **pg);
 
     pair<int, float> get_next();
 

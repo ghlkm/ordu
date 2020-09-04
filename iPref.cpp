@@ -281,16 +281,17 @@ bool r_dominatedByK(const int dim, float* pt, const float radius,
     return r_dominate_cnt>=k;
 }
 
-float computeRho(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[])
+float computeRho(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[],
+        vector<pair<long int, float>> &interval, float radius)
 {
-	float raduis = INFINITY;
-	vector<pair<long int, float>> interval; // top-k result of w: T
+//	float raduis = INFINITY;
+//	vector<pair<long int, float>> interval; // top-k result of w: T
 	vector<long int> incompSet;
 	pair<float, int> candidateOpt;
 
 	RtreeNode* node;
-	priority_queue<pair<float, int>> heap;
-	priority_queue<pair<float, int>> candidateRet;
+	multimap<float, int, greater<float>> heap;
+    multimap<float, int, greater<float>> candidateRet;
 
 	float pt[MAXDIMEN];
 	float maxscore;
@@ -301,11 +302,15 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 
 	heap.emplace(INFINITY, a_rtree.m_memory.m_rootPageID);
 
-	while (!heap.empty())
+	// begin: use for DEBUG
+//    bool flag=false;
+    // end: use for DEBUG
+
+    while (!heap.empty())
 	{
-		tmpScore = heap.top().first;
-		pageID = heap.top().second;
-		heap.pop();
+		tmpScore = heap.begin()->first;
+		pageID = heap.begin()->second;
+		heap.erase(heap.begin());
 
 		if (pageID > MAXPAGEID)  // option processing
 		{
@@ -318,27 +323,37 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 				if (candidateRet.size() < X - k)  // Phase II
 				{
 					tmpRadius = computeradius(k, dimen, pageID - MAXPAGEID, userpref, incompSet, PG);
-					candidateRet.emplace(tmpRadius, pageID-MAXPAGEID);
-					if(candidateRet.size()==X-k)
-					{
-                        raduis = candidateRet.top().first;
-                    }
-				}
+					if(tmpRadius!=INFINITY){
+                        candidateRet.emplace(tmpRadius, pageID-MAXPAGEID);
+                        if(candidateRet.size()==X-k)
+                        {
+                            radius = candidateRet.begin()->first;
+                        }
+					}
+					// begin: use for DEBUG
+//					else{
+//					    if(!flag){
+//					        cout<<interval.back().second<<endl;
+//					        flag=true;
+//					    }
+//					}
+                    // end: use for DEBUG
+                }
 				else if(X<=k)
 				{
                     assert(X==k);// if fails there is a problem in data
-				    raduis=0;
+                    radius=0;
 				    break;
 				}
 				else   // Phase III
 				{
 					tmpRadius = computeradius(k, dimen, pageID - MAXPAGEID, userpref, incompSet, PG);
-					if (tmpRadius < candidateRet.top().first)
+					if (tmpRadius < candidateRet.begin()->first)
 					{
 						candidateRet.emplace(tmpRadius, pageID - MAXPAGEID);
-						candidateRet.pop();
-                        candidateOpt = candidateRet.top();
-                        raduis = candidateOpt.first;
+						candidateRet.erase(candidateRet.begin());
+                        candidateOpt = *candidateRet.begin();
+                        radius = candidateOpt.first;
 					}
 				}
 			}
@@ -358,7 +373,7 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 						tmpScore += pt[j] * userpref[j];
 					}
 					Point a_pt(dimen, pt);
-					if (raduis == INFINITY)
+					if (radius == INFINITY)
 					{
                         if (!dominatedByK(dimen, pt, incompSet, PG, k))
 						{
@@ -367,7 +382,7 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 					}
 					else
 					{
-                        if (!r_dominatedByK(dimen, pt, raduis, userpref, incompSet, PG, k))
+                        if (!r_dominatedByK(dimen, pt, radius, userpref, incompSet, PG, k))
 						{
                             heap.emplace(tmpScore, node->m_entry[i]->m_id + MAXPAGEID);
                         }
@@ -385,7 +400,7 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 						tmpScore += pt[j] * userpref[j];
 					}
 					Point a_pt(dimen, pt);
-                    if (raduis == INFINITY)
+                    if (radius == INFINITY)
                     {
                         if (!dominatedByK(dimen, pt, incompSet, PG, k))
                         {
@@ -394,7 +409,7 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
                     }
                     else
                     {
-                        if (!r_dominatedByK(dimen, pt, raduis, userpref, incompSet, PG, k))
+                        if (!r_dominatedByK(dimen, pt, radius, userpref, incompSet, PG, k))
                         {
                             heap.emplace(tmpScore, node->m_entry[i]->m_id);
                         }
@@ -404,10 +419,17 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 			}
 		}
 	}
-	if(interval.size()+candidateRet.size()<X){
+
+    for (auto riter=candidateRet.rbegin();riter!=candidateRet.rend();++riter) {
+        interval.emplace_back(riter->second, riter->first);
+    }
+//    for (pair<long int, float> &p:interval) {
+//        cout<<p.second<<endl;
+//    }
+	if(interval.size()<X){
 	    return INFINITY;
 	}else{
-        return raduis;
+        return radius;
     }
 }
 
@@ -419,7 +441,7 @@ unknown_X_node::unknown_X_node(int d,  const float *dt, int pid){
         page_id=pid;
         fetched=false;
         tau=0;// used in unknown efficient
-    }
+}
 
 float unknown_X_node::radius_LB(){
 //        assert(!topK_dominate_radius.empty());
@@ -470,7 +492,7 @@ void unknown_X_node::update_radius_erase(const float* other_option, vector<float
     topK_dominate_radius.erase(topK_dominate_radius.begin());
 }
 
-float computeRho_unknownX_basic(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[])
+float computeRho_unknownX_basic(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float** PG)
 {
     // phase (1) if get_next_time<=k, from BBS fetch topK
     // phase (2) for each element in BBS, calculate their inflection radius and store them into unordered_set S
@@ -832,7 +854,7 @@ float computeRho_unknownX_efficient(const int dimen, const int k, const int X, v
 
 
 
-unknown_x_efficient::unknown_x_efficient(const int dim, const int K, vector<float> &userPref, Rtree &aRtree, float *pg[]
+unknown_x_efficient::unknown_x_efficient(const int dim, int K, vector<float> &userPref, Rtree &aRtree, float **pg
 ) : a_rtree(aRtree) {
     this->dimen=dim;
     this->k=K;
@@ -924,6 +946,7 @@ pair<int, float> unknown_x_efficient::get_next() {
                 }
                 return interval.back();
             } else {
+                // todo UPDATE WHEN needed
                 popped_node->update_radius(incompSet.begin() + popped_node->tau, incompSet.end(), PG, userpref);
                 C.emplace(popped_node->radius_LB(), popped_node);
                 incompSet.push_back(pageID - MAXPAGEID);
@@ -972,7 +995,45 @@ pair<int, float> unknown_x_efficient::get_next() {
         }
 
     }
+    return {-1, INFINITY};
 }
 
+vector<vector<int>> get_first_k_layers(vector<vector<float>> &pointSet){
+    vector<vector<int>> ret;
+    //TODO
+    return ret;
+}
 
+void expand_convex_hull(vector<int> &CH1,vector<int> &not_CH1, vector<vector<float>> &pointSet, int new_ele){
+    //TODO
+}
 
+//void utk_efficient(vector<vector<float>> &PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k){
+//    // 1. calculate first k convex hulls
+////    vector<vector<int>> k_layers=get_first_k_layers(PointSet);
+//
+////    unknown_x_efficient(const int dim, const int K, vector<float> &userPref, Rtree &aRtree, float **pg);
+//
+//    unknown_x_efficient get_next_obj(dim, 1, w, *rtree, reinterpret_cast<float **>(PointSet.data()));
+//    vector<int> CH1;
+//    vector<int> not_CH1;
+//    pair<int, float> next={-1, INFINITY};
+//    while(CH1.size()<X){
+//        next=get_next_obj.get_next();
+//        expand_convex_hull(CH1, not_CH1,PointSet, next.first);
+//    }
+//    float rho_star=next.second;
+//
+//    vector<pair<long int, float>> interval;
+//    computeRho(dim, k, INFINITY, w, *rtree, reinterpret_cast<float **>(PointSet.data()), interval, rho_star);
+//    vector<int> rskyband_CS;
+//    for (pair<long int, float> &p:interval) {
+//        rskyband_CS.push_back(p.first);
+//    }
+//
+//    // min_heap Q <min_dist(w,  C), {top-?, option, C}>
+//    int top1_id=interval.begin()->first;
+//    vector<int> Ap_top1=(CH1, top1_id);
+//
+//
+//}

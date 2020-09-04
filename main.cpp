@@ -37,7 +37,7 @@ clock_t at, ad;
 
 int main(const int argc, const char** argv)
 {
-	cout.precision(4);
+	cout.precision(6);
 	cout << "iPref Problem (Size-constrained R-kSkyband/UTK )" << endl;
 	clock_t at, ad;
 	
@@ -209,7 +209,7 @@ int main(const int argc, const char** argv)
 				assert(radiusSKI.size() >= k);
 				interval.emplace_back(skyband[ski], radiusSKI[radiusSKI.size() - k]);
 			}
-			assert(interval.size() >= X);
+//			assert(interval.size() >= X );
 			sort(interval.begin(), interval.end(), sortbysec);
 			for (auto i = 0; i < k; ++i) {
 				interval[i].first = topKRet[i];
@@ -223,7 +223,7 @@ int main(const int argc, const char** argv)
 				if (cnt > X)
 					break;
 			}
-			cout << "The inflection radius is: " << interval[X].second << endl;
+			cout << "The inflection radius is: " << interval.back().second << endl;
 		}
 		ad = clock();
 		cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
@@ -252,8 +252,8 @@ int main(const int argc, const char** argv)
 				cout << w[di] << ", ";
 			}
 			cout <<w.back()<< endl;
-
-			float rho = computeRho(dim, k, X, w, *rtree, PointSet);
+            vector<pair<long int, float>> interval;
+			float rho = computeRho(dim, k, X, w, *rtree, PointSet, interval);
 			cout << "The inflection radius is: " << rho << endl;
 		}
 		ad = clock();
@@ -340,6 +340,11 @@ int main(const int argc, const char** argv)
             for (int i = 0; i < X; ++i) {
                 obj.get_next();
             }
+//            pair<int, float> next=obj.get_next();
+//            while(!(next.second==INFINITY)){
+//                cout<<next.second<<"\n";
+//                next=obj.get_next();
+//            }
             float rho = obj.interval.back().second;
             cout << "The inflection radius is: " << rho << endl;
         }

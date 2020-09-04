@@ -120,11 +120,10 @@ inline void qp_solver::update_h(const vector<FLOAT>&h){
 template<typename FLOAT>
 inline FLOAT qp_solver::solve_update_h(const vector<FLOAT> &h){
     this->update_h(h);
-    osqp_solve(work);
     //the real dominate radius is
     // 2 * work->info->obj_val + w^T \cdot w
-    FLOAT ret=2*work->info->obj_val+w_L2;
-    return ret>=0?ret:0;
+    FLOAT ret=this->solve();
+    return ret;
 }
 
 template<typename FLOAT>
