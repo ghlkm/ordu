@@ -465,6 +465,11 @@ inline bool unknown_X_node::update(int need_to_update) const{// used in unknown 
     return this->tau>=need_to_update;
 }
 
+//inline bool update() const{
+//    return
+//}
+
+
 void unknown_X_node::update_radius(vector<long int>::iterator begin, vector<long int>::iterator end, float **PointSet, vector<float> &w, float rho){
     for (; begin!=end; ++begin) {
         update_radius_erase(PointSet[*begin], w);
@@ -1000,31 +1005,75 @@ pair<int, float> unknown_x_efficient::get_next() {
 }
 
 
-vector<vector<int>> get_first_k_layers(vector<vector<float>> &pointSet){
-    vector<vector<int>> ret;
-    //TODO
-    return ret;
+
+template<typename ITERATABLE>
+vector<int> build_qhull(const ITERATABLE &opt_idxes, float **PG, vector<vector<float>> &square_vertexes){
+    // \tpara ITERATABLE set<int>, unorder_set<int>, vector<int> and other iteratable STL<INT> CLASS
+    int dim=square_vertexes[0].size();
+    for (int opt_idx:opt_idxes) {
+        for (int i = 0; i < dim; ++i) {
+            square_vertexes[i][i] = max(square_vertexes[i][i], PG[opt_idx][i]);
+        }
+    }
+    string s = to_string(dim - 1) + " " + to_string(opt_idxes.size() + square_vertexes.size()) + " ";
+    for (vector<float> & square_vertex : square_vertexes){
+        for (float j : square_vertex){
+            s += to_string(j) + " ";
+        }
+    }
+    for(int opt_idx:opt_idxes){
+        for (int i = 0; i <dim ; ++i) {
+            s += to_string(PG[opt_idx][i]) + " ";
+        }
+    }
+    istringstream is(s);
+    RboxPoints rbox;
+    rbox.appendPoints(is);
+    Qhull q(rbox, "");
+    vector<int> CH;
+    for(auto qiter=q.beginVertex();qiter!=q.endVertex();qiter=qiter.next()){
+        CH.push_back(qiter.id());
+    }
+    return CH;
 }
 
-void expand_convex_hull(Qhull &qhull_obj,vector<int> &not_CH1, float* new_ele, int dim, vector<vector<float>> &square_vertexes){
-    //TODO
-    // \para not_CH1, record the options the doesn't belond to CH_1
+inline void update_square_vertexes(vector<vector<float>> &square_vertexes, float *new_ele, int dim){
+    for (int i=0;i<dim;++i){
+        square_vertexes[i][i]=max(square_vertexes[i][i], new_ele[i]);
+    }
 }
 
-
-
-void build_qhull(Qhull &qhull_obj, const vector<int> &topX, float **PG, vector<vector<float>> &square_vertexes){
-    // TODO
-
-}
-
-void update_square_vertexes(vector<vector<float>> &square_vertexes, float *new_ele){
-    // TODO
-}
-
-vector<Qhull> k_convex_hull(vector<int> &idx, float** &pointSet){
-
-}
+class ch{
+    unordered_set<int> rest;
+    vector<vector<int>> chs;
+    vector<int> EMPTY;
+    float** pointSet;
+    int d;
+    public:
+    ch(vector<int> &idxes, float** &point_set, int dim){
+        this->rest=unordered_set<int>(idxes.begin(), idxes.end());
+        this->pointSet=point_set;
+        this->d=dim;
+    }
+    const vector<int>& get_next_layer(){
+        vector<vector<float>> square_vertexes(d+1, vector<float>(d));
+        chs.push_back(build_qhull(rest, pointSet, square_vertexes));
+        for (int idx:chs.back()) {
+            rest.erase(idx);
+        }
+        return chs.back();
+    }
+    const vector<int>& get_layer(int which_layer){
+        // layer is starting from 1
+        while(chs.size()<which_layer && !rest.empty()){
+            this->get_next_layer();
+        }
+        if(chs.size()<which_layer && rest.empty()){
+            return EMPTY;
+        }
+        return this->chs[which_layer-1];
+    }
+};
 
 class region{
 public:
@@ -1033,17 +1082,53 @@ public:
     vector<vector<float>> cone;
 };
 
-void topRegions(vector<vector<float>> &parent_region, vector<int> &CH_upd, vector<Qhull> &convex_layers,
+void topRegions(vector<vector<float>> &parent_region, vector<int> &CH_upd, ch &ch_obj,
                 multimap<float, region*> &id_radius, int deepest_layer){
     //dfs
 }
 
-vector<int> qhull_to_idx(Qhull &q){
-
-}
 
 vector<vector<float>> points_to_halfspace(vector<vector<float>> &points){
+    // be careful such that the norms are pointing out the convex cone
+    // which means the convex cone is represented as
+    // n_1 \cdot w <= 0
+    // n_2 \cdot w <= 0
+    // ...
+    // n_a \cdot w <= 0
+    int dim=points[0].size();
+    vector<vector<float>> square_vertexes;
+    square_vertexes.emplace_back(dim, 0.0);
+    square_vertexes.emplace_back(dim, 1.0);
 
+    string s = to_string(dim - 1) + " " + to_string(points.size() + square_vertexes.size()) + " ";
+    for (vector<float> & square_vertex : square_vertexes){
+        for (float j : square_vertex){
+            s += to_string(j) + " ";
+        }
+    }
+    for(vector<float> &point: points){
+        for (float i:point) {
+            s += to_string(i) + " ";
+        }
+    }
+    istringstream is(s);
+    RboxPoints rbox;
+    rbox.appendPoints(is);
+    Qhull q(rbox, "");
+    auto oviter= q.endVertex();
+    for(auto viter=q.beginVertex();viter!=q.endVertex();viter=viter.next()){
+        if(viter.id()==0){
+            oviter=viter;
+        }
+    }
+    assert(oviter!=q.endVertex());
+    auto hyperplanes = oviter.neighborFacets().toStdVector();
+    vector<vector<float>> norms;
+    for(auto & hyperplane : hyperplanes){
+        double *h=hyperplane.hyperplane().coordinates();
+        norms.emplace_back(h, h+dim);
+    }
+    return norms;
 }
 
 void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
@@ -1057,30 +1142,31 @@ void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X,
     unknown_x_efficient get_next_obj(dim, 1, w, *rtree, PointSet);
     pair<int, float> next={-1, INFINITY};
     //fetch top X options
-    vector<int> topX;
-    while(topX.size()<X){
+    vector<int> CH_1_X_opt;
+    while(CH_1_X_opt.size() < X){  // fetch top X
         next=get_next_obj.get_next();
     }
     // qhull class in lib qhull
-    Qhull qhull_obj;
-    vector<vector<float>> square_vertexes;
+    const int square_vertex_cnt=dim+1;
+    vector<vector<float>> square_vertexes(square_vertex_cnt, vector<float>(dim));
 
     // init qhull with top X options
-    build_qhull(qhull_obj, topX, PointSet, square_vertexes);
+    CH_1_X_opt=build_qhull(CH_1_X_opt, PointSet, square_vertexes);
 
     // a 3-d example of square_vertex, square_vertex_cnt=4
     // point 0: (max(points[:, 0]), 0, 0)
     // point 1: (0, max(points[:, 1]), 0)
     // point 2: (0, 0, max(points[:, 1]))
     // point 3: \vec{0}
-    const int square_vertex_cnt=dim+1;
 
     // rho_star is computed as when CH_1.size()=X
-    vector<int> not_CH1;
-    while(qhull_obj.vertexCount()-square_vertex_cnt<X){ // while(CH_1.size<X)
-        next=get_next_obj.get_next();
-        update_square_vertexes(square_vertexes, PointSet[next.first]);
-        expand_convex_hull(qhull_obj, not_CH1, PointSet[next.first], dim, square_vertexes);
+    while(CH_1_X_opt.size() < X){ // while(CH_1.size<X)
+        while(CH_1_X_opt.size() < X){
+            next=get_next_obj.get_next();
+            update_square_vertexes(square_vertexes, PointSet[next.first], dim);
+            CH_1_X_opt.push_back(next.first);
+        }
+        CH_1_X_opt=build_qhull(CH_1_X_opt, PointSet, square_vertexes);
     }
     // for now, qhull_obj contains points 0~3 and convex hull vertexes
     float rho_star=next.second;
@@ -1093,8 +1179,8 @@ void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X,
     for (pair<long int, float> &p:interval) {
         rskyband_CS.push_back(p.first);
     }
-    vector<Qhull> topk_layers=k_convex_hull(rskyband_CS, PointSet);
-    vector<int> top1_idxes=qhull_to_idx(topk_layers[0]);
+    ch ch_obj(rskyband_CS, PointSet, dim);
+    vector<int> top1_idxes=ch_obj.get_layer(1);
     vector<vector<float>> tmp;
     for (vector<c_float> &e:g_r_domain_vec) {
         tmp.push_back(w+e);
@@ -1107,7 +1193,7 @@ void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X,
 //        float radius;
 //        vector<vector<float>> cone;
 //    };
-    topRegions(begin_region, top1_idxes, topk_layers, id_radius,  0);
+    topRegions(begin_region, top1_idxes, ch_obj, id_radius,  0);
 
     // until X different options
 //    vector<pair<int, float>> utk_ret;

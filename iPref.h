@@ -59,6 +59,8 @@ public:
 
     inline bool update(int need_to_update) const;
 
+//    inline bool update() const;
+
     void update_radius(vector<long int>::iterator begin, vector<long int>::iterator end, float **PointSet, vector<float> &w, float rho=INFINITY);
 
     void update_radius(const float* other_option, vector<float> &w);

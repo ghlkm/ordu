@@ -48,7 +48,7 @@ int main(const int argc, const char** argv)
 		helpmsg(argv[0]);
 		return -1;
 	}
-
+    const int k = atoi(Param::read(argc, argv, "-k", ""));
 	int dim = atoi(Param::read(argc, argv, "-d", ""));
 	const char* datafile = Param::read(argc, argv, "-f", "");
 	const char* indexfile = Param::read(argc, argv, "-i", "");
@@ -68,7 +68,8 @@ int main(const int argc, const char** argv)
 	fstream fpdata;
     fpdata.open(w_file, ios::in);
     for (int i = 0; i < ws.size(); ++i) {
-        fpdata >> ks[i];
+//        fpdata >> ks[i];
+        ks[i]=k;
         for (int j = 0; j < ws[i].size(); ++j) {
             fpdata >> ws[i][j];
         }
@@ -154,7 +155,7 @@ int main(const int argc, const char** argv)
 			vector<long int> skyband;
 			int k=ks[wi];
 			kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
-			cout << skyband.size() << endl;
+//			cout << skyband.size() << endl;
 
 			// weight vector for testing, we should remove the redundant one
 			vector<float> w(ws[wi].begin(), ws[wi].end());
@@ -215,15 +216,15 @@ int main(const int argc, const char** argv)
 				interval[i].first = topKRet[i];
 			}
 
-			int cnt = 0;
-			for (auto i = interval.begin(); i != interval.end(); ++i)
-			{
-				cout << i->second << ", " << i->first << endl;
-				++cnt;
-				if (cnt > X)
-					break;
-			}
-			cout << "The inflection radius is: " << interval.back().second << endl;
+//			int cnt = 0;
+//			for (auto i = interval.begin(); i != interval.end(); ++i)
+//			{
+//				cout << i->second << ", " << i->first << endl;
+//				++cnt;
+//				if (cnt > X)
+//					break;
+//			}
+			cout << "The inflection radius is: " << interval[X].second << endl;
 		}
 		ad = clock();
 		cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
@@ -324,8 +325,12 @@ int main(const int argc, const char** argv)
     if (strcmp(methodName, "UA_GN") == 0) // unknown X efficient get_next version
     {
         at = clock();
+        auto begin = chrono::steady_clock::now();
+        vector<double> avg_time(X);
+        vector<float> avg_radius(X);
         for (int wi = 0; wi < w_num; wi++)
         {
+            auto w_begin = chrono::steady_clock::now();
             int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
             vector<float> w(ws[wi].begin(), ws[wi].end());
@@ -339,6 +344,14 @@ int main(const int argc, const char** argv)
             unknown_x_efficient obj(dim, k, w, *rtree, PointSet);
             for (int i = 0; i < X; ++i) {
                 obj.get_next();
+                auto now = chrono::steady_clock::now();
+                chrono::duration<double> elapsed_seconds= now-w_begin;
+                avg_time[i]+=elapsed_seconds.count();
+//                cout<<elapsed_seconds.count()<<"\n";
+            }
+            for (int i = 0; i < X; ++i) {
+                avg_radius[i]+=obj.interval[i].second;
+//                cout<<obj.interval[i].second<<"\n";
             }
 //            pair<int, float> next=obj.get_next();
 //            while(!(next.second==INFINITY)){
@@ -348,9 +361,25 @@ int main(const int argc, const char** argv)
             float rho = obj.interval.back().second;
             cout << "The inflection radius is: " << rho << endl;
         }
+
         ad = clock();
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+        for (double time:avg_time) {
+            cout<<time/w_num<<endl;
+        }
+        for (float radius:avg_radius) {
+            cout<<radius/w_num<<endl;
+        }
+        auto now = chrono::steady_clock::now();
+        chrono::duration<double> elapsed_seconds= now-begin;
     }
-
+    ofstream myfile;
+    myfile.open ("result.txt", ios::out | ios::app | ios::binary);
+    myfile <<fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num)<<": ";
+    for (int l = 0; l < argc; ++l) {
+        myfile<< argv[l]<<" ";
+    }
+    myfile<<endl;
+    myfile.close();
 	return 0;
 }
