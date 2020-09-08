@@ -117,27 +117,31 @@ bool sortbysec(const pair<long int, float> &a, const pair<long int, float> &b)
 	return (a.second < b.second);
 }
 
-float computeradius(const int k, const int dim, long int pi, vector<float>& userpref, vector<long int>& incompSet, float* PG[])
+float computeradius(const int k, const int dim, long int pi, vector<float>& userpref, vector<long int>& incompSet, float* PG[], float rho)
 {
-	vector<float> radiusSKI;
+	multiset<float> radiusSKI;
 	vector<float> tmpHS(dim);
 	float tmpDis;
-
 	for (int ri = 0; ri < incompSet.size(); ri++)
 	{
 		if (IsPjdominatePi(dim, PG, pi, incompSet[ri]))  // for these dominators, we directly input as FLTMAX
 		{
-			radiusSKI.push_back(INFINITY);
+			radiusSKI.insert(INFINITY);
 		}
 		else
 		{
 			tmpHS = computePairHP(dim, PG, pi, incompSet[ri]);
 			tmpDis = computeDis(tmpHS, userpref);
-			radiusSKI.push_back(tmpDis);
+			radiusSKI.insert(tmpDis);
+		}
+		if(radiusSKI.size()>k){
+		    radiusSKI.erase(radiusSKI.begin());
+		    if(*radiusSKI.begin()>=rho){
+		        break;
+		    }
 		}
 	}
-	sort(radiusSKI.begin(), radiusSKI.end());
-	return radiusSKI[radiusSKI.size() - k];
+	return *radiusSKI.begin();
 }
 
 int countDominator(Rtree& a_rtree, float* PG[], Point& a_pt)
@@ -348,7 +352,7 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 				}
 				else   // Phase III
 				{
-					tmpRadius = computeradius(k, dimen, pageID - MAXPAGEID, userpref, incompSet, PG);
+					tmpRadius = computeradius(k, dimen, pageID - MAXPAGEID, userpref, incompSet, PG, candidateRet.begin()->first);
 					if (tmpRadius < candidateRet.begin()->first)
 					{
 						candidateRet.emplace(tmpRadius, pageID - MAXPAGEID);

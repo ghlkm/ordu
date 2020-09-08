@@ -41,7 +41,7 @@ float computeRho_unknownX_basic(const int dimen, const int k, const int X, vecto
 float computeRho_unknownX_efficient(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[]);
 
 // compute the radius in phase 2, optimized algorithm
-float computeradius(const int k, const int dim, long int pi, vector<float>& userpref, vector<long int>& incompSet, float* PG[]);
+float computeradius(const int k, const int dim, long int pi, vector<float>& userpref, vector<long int>& incompSet, float* PG[], float rho=INFINITY);
 
 class unknown_X_node{
 private:

@@ -181,16 +181,20 @@ int main(const int argc, const char** argv)
 				{
 					continue;
 				}
-				vector<float> radiusSKI;
+				multiset<float> radiusSKI;
 				vector<long int> incompset;
 				vector<long int> dominatorSet;
+				int dominated_cnt=0;
 				for (int pj = 0; pj < skyband.size(); pj++)
 				{
 					if (ski == pj)
 						continue;
 					if (IsPjdominatePi(dim, PointSet, skyband[ski], skyband[pj]))
 					{
-						radiusSKI.push_back(FLT_MAX);
+						radiusSKI.insert(INFINITY);
+                        dominated_cnt++;
+						if(dominated_cnt>=k)
+						    break;
 					}
 					else if (incomparableset(PointSet, skyband[ski], skyband[pj], w)) // step (2)
 					{
@@ -199,16 +203,32 @@ int main(const int argc, const char** argv)
 				}
 
 				// here we need a function to compute the inflection radius of option pi
+                if(dominated_cnt>=k){
+                    interval.emplace_back(skyband[ski], INFINITY);
+                    continue;
+                }
+                while(radiusSKI.size()>k){
+                    radiusSKI.erase(radiusSKI.begin());
+                }
 				for (int inpi = 0; inpi < incompset.size(); inpi++)
 				{
 					vector<float> tmpHS = computePairHP(dim, PointSet, skyband[ski], incompset[inpi]);
 					//compute the distance from w to hyperplane.
 					float tmpDis = computeDis(tmpHS, w);
-					radiusSKI.push_back(tmpDis);
+					radiusSKI.insert(tmpDis);
+					if(radiusSKI.size()>k){
+					    radiusSKI.erase(radiusSKI.begin());
+					    if(*radiusSKI.begin()==INFINITY){
+                            break;
+                        }
+					}
 				}
-				sort(radiusSKI.begin(), radiusSKI.end());
-				assert(radiusSKI.size() >= k);
-				interval.emplace_back(skyband[ski], radiusSKI[radiusSKI.size() - k]);
+				if(*radiusSKI.begin()==INFINITY){
+                    interval.emplace_back(skyband[ski], INFINITY);
+                }else{
+                    assert(radiusSKI.size() >= k);
+                    interval.emplace_back(skyband[ski], *radiusSKI.begin());
+				}
 			}
 //			assert(interval.size() >= X );
 			sort(interval.begin(), interval.end(), sortbysec);
