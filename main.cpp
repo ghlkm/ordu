@@ -394,7 +394,7 @@ int main(const int argc, const char** argv)
         chrono::duration<double> elapsed_seconds= now-begin;
     }
     ofstream myfile;
-    myfile.open ("result.txt", ios::out | ios::app | ios::binary);
+    myfile.open ("result2.txt", ios::out | ios::app | ios::binary);
     myfile <<fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num)<<": ";
     for (int l = 0; l < argc; ++l) {
         myfile<< argv[l]<<" ";
