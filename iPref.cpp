@@ -1321,6 +1321,7 @@ vector<vector<double>> points_to_halfspace(vector<vector<double>> &points){
     for(auto viter=q.beginVertex();viter!=q.endVertex();viter=viter.next()){
         if(viter.id()==0){
             oviter=viter;
+            break;
         }
     }
     assert(oviter!=q.endVertex());
@@ -1399,7 +1400,7 @@ void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X,
 //    };
     vector<int> init_topi;
     vector<int> init_neighbors;
-    topRegions(begin_region, CH_1_X_opt, ch_obj, id_radius, 1,  PointSet, dim,
+    topRegions(begin_region, CH_1_X_opt, ch_obj, id_radius, 0,  PointSet, dim,
                     k, init_topi, w, init_neighbors);
     // until X different options
 //    vector<pair<int, float>> utk_option_ret;
@@ -1417,5 +1418,4 @@ void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X,
         utk_cones_ret.emplace_back(iter->second->topk, iter->second->cone);
         ++iter;
     }
-
 }
