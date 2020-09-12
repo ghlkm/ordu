@@ -34,7 +34,6 @@ double treeSpacecost = 0.0;
 double Spacecost = 0.0;
 clock_t at, ad;
 
-
 int main(const int argc, const char** argv)
 {
 	cout.precision(6);
@@ -396,7 +395,7 @@ int main(const int argc, const char** argv)
 //    void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
 //                   vector<pair<int, double>> &utk_option_ret,
 //                   vector<pair<vector<int>, vector<vector<double>>>> &utk_cones_ret)
-    if (strcmp(methodName, "UTK_BB") == 0) // unknown X efficient get_next version
+    if (strcmp(methodName, "UTK_BB") == 0) // utk baseline
     {
         at = clock();
         auto begin = chrono::steady_clock::now();
@@ -422,6 +421,40 @@ int main(const int argc, const char** argv)
             vector<pair<vector<int>, vector<vector<double>>>> utk_cones_ret;
             utk_basic(PointSet, dim, w, rtree, X, k, utk_option_ret, utk_cones_ret);
 
+            double rho = utk_option_ret.back().second;
+            cout << "The inflection radius is: " << rho << endl;
+        }
+
+        ad = clock();
+        cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+        auto now = chrono::steady_clock::now();
+        chrono::duration<double> elapsed_seconds= now-begin;
+    }
+    if (strcmp(methodName, "UTK_OA") == 0) // utk efficient
+    {
+        at = clock();
+        auto begin = chrono::steady_clock::now();
+        vector<double> avg_time(X);
+        vector<float> avg_radius(X);
+        for (int wi = 0; wi < w_num; wi++)
+        {
+            auto w_begin = chrono::steady_clock::now();
+            int k=ks[wi];
+            // weight vector for testing, we should remove the redundant one
+            vector<float> w(ws[wi].begin(), ws[wi].end());
+            cout << "Testing w: ";
+            for (int di = 0; di < dim-1; di++)
+            {
+                cout << w[di] << ", ";
+            }
+            cout <<w.back()<< endl;
+
+            //    void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
+//                   vector<pair<int, double>> &utk_option_ret,
+//                   vector<pair<vector<int>, vector<vector<double>>>> &utk_cones_ret)
+            vector<pair<int, double>> utk_option_ret;
+            vector<pair<double, region*>> utk_cones_ret;
+            utk_efficient(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
             double rho = utk_option_ret.back().second;
             cout << "The inflection radius is: " << rho << endl;
         }

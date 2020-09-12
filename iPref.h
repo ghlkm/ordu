@@ -104,4 +104,27 @@ void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X,
 
 vector<int> get_CH_pdtid(const vector<int> &pdt_ids, Qhull &q);
 
+
+class region{
+public:
+    vector<int> topk;
+    double radius;
+    vector<vector<double>> cone;
+public:
+    region(vector<int> &topK, vector<vector<double>> &Cone){
+        topk=topK;
+        cone=Cone;
+    }
+    void setRadius(float new_r){
+        this->radius=new_r;
+    }
+    void setRadius(double new_r){
+        this->radius=new_r;
+    }
+};
+
+
+void utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
+                   vector<pair<int, double>> &utk_option_ret,
+                   vector<pair<double, region*>> &utk_cones_ret);
 #endif
