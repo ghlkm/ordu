@@ -22,10 +22,8 @@ void lpModel(lprec* lp, int& dimen)
 
 bool isFeasible(vector<vector<double>> &r1,  vector<vector<double>> &r2){
     int dim;
-    if(r1.empty() && r2.empty()){
+    if(r1.empty() || r2.empty()){
         return true;
-    }else if(r1.empty()){
-        dim=r2[0].size();
     }else{
         dim=r1[0].size();
     }

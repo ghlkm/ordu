@@ -81,7 +81,7 @@ class qp_solver{
             A_x[A_x_idx++]=1.0;
         }
         c_int A_nnz = A_x.size();
-        A_i=vector<c_int>(3*dim);
+        A_i=vector<c_int>((2+H.size())*dim);
         c_int A_i_idx=0, h_iidx=0;
         while(A_i_idx<A_i.size()){
             A_i[A_i_idx++]=0;

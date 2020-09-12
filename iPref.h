@@ -9,6 +9,7 @@
 #include "filemem.h"
 #include "global.h"
 #include "skyline.h"
+#include "qhull_user.h"
 
 extern unordered_map<long int, RtreeNode*> ramTree;
 
@@ -96,4 +97,11 @@ public:
 
     ~unknown_x_efficient();
 };
+
+void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
+               vector<pair<int, double>> &utk_option_ret,
+               vector<pair<vector<int>, vector<vector<double>>>> &utk_cones_ret);
+
+vector<int> get_CH_pdtid(const vector<int> &pdt_ids, Qhull &q);
+
 #endif
