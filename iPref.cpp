@@ -8,6 +8,7 @@
 
 extern int objCnt;
 
+extern qp_solver qp;
 
 inline double max(double a, float b){
     return a>b?a:b;
@@ -58,7 +59,11 @@ bool IsPjdominatePi(const int dimen, float* PG[], long int pi, long int pj)
 		pid = (PG[pi][d] + PG[pi][dimen + d]) / 2.0;
 		pjd = (PG[pj][d] + PG[pj][dimen + d]) / 2.0;
 		if (pjd >= pid)
-			count++;
+		{
+            count++;
+        }else{
+            break;
+		}
 	}
 
 
@@ -71,7 +76,6 @@ bool IsPjdominatePi(const int dimen, float* PG[], long int pi, long int pj)
 		return false;
 	}
 }
-
 
 bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weight)
 {
@@ -109,7 +113,6 @@ bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weigh
 		return false;
 }
 
-
 vector<float> computePairHP(const int dimen, float* PG[], long int pi, long int pj)
 {
 	vector<float> retHS(dimen);
@@ -119,9 +122,7 @@ vector<float> computePairHP(const int dimen, float* PG[], long int pi, long int 
 	return retHS;
 }
 
-extern qp_solver qp;
-
-float computeDis(vector<float> tmpHS, vector<float> userpref)
+float computeDis(const vector<float> &tmpHS, const vector<float> &userpref)
 {
     float ret=qp.update_w_h_solve(userpref, tmpHS);
     return ret;
@@ -156,17 +157,19 @@ float computeradius(const int k, const int dim, long int pi, vector<float>& user
 		    }
 		}
 	}
-	return *radiusSKI.begin();
+	if(radiusSKI.size()>=k){
+        return *radiusSKI.begin();
+    }else{
+	    return 0;
+	}
 }
 
 int countDominator(Rtree& a_rtree, float* PG[], Point& a_pt)
 {
 	queue<long int> H;
-	float pt[MAXDIMEN];
 	float rd[MAXDIMEN];
 	int dimen = a_rtree.m_dimen;
 	int NoOfDominators = 0;
-	int NoofDominees = 0;
 	RtreeNode* node;
 	RtreeNodeEntry* e0;
 	long int NegPageid, pageid;
@@ -228,7 +231,7 @@ int countDominator(Rtree& a_rtree, float* PG[], Point& a_pt)
 	return NoOfDominators;
 }
 
-int countNodeDominator(const int dim, float* pt, vector<long int>& incompSet, float* PG[]) // I am not sure it is correct if we only consider incompSet.
+int countNodeDominator(const int dim, const float* pt, vector<long int>& incompSet, float* PG[]) // I am not sure it is correct if we only consider incompSet.
 {
 	int cnt = 0;
 	for (int i = 0; i < incompSet.size(); i++)
@@ -250,7 +253,7 @@ int countNodeDominator(const int dim, float* pt, vector<long int>& incompSet, fl
 	return cnt;
 }
 
-bool v2_r_dominate_v1_float(float* &v1, float* &v2, const vector<float> &w, const vector<vector<c_float>> &r_domain_vec, const float &rho) {
+bool v2_r_dominate_v1_float(const float* v1, const float* v2, const vector<float> &w, const vector<vector<c_float>> &r_domain_vec, const float &rho) {
     for (const vector<c_float> &v:r_domain_vec) {
 //        vector<float> tmp_w = w + rho * v;
 //        if (v1 * tmp_w < v2 * tmp_w) {
@@ -304,8 +307,6 @@ bool r_dominatedByK(const int dim, float* pt, const float radius,
 float computeRho(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[],
         vector<pair<long int, float>> &interval, float radius)
 {
-//	float raduis = INFINITY;
-//	vector<pair<long int, float>> interval; // top-k result of w: T
 	vector<long int> incompSet;
 	pair<float, int> candidateOpt;
 
@@ -314,35 +315,29 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
     multimap<float, int, greater<float>> candidateRet;
 
 	float pt[MAXDIMEN];
-	float maxscore;
 	int pageID;
 	float tmpScore; // compute the score of option or mbr e w.r.t. userpref
-	float tmpDis; // compute the inflection radius of point pt
 	float tmpRadius; // the inflection radius of point Pi.
 
 	heap.emplace(INFINITY, a_rtree.m_memory.m_rootPageID);
-
-	// begin: use for DEBUG
-//    bool flag=false;
-    // end: use for DEBUG
 
     while (!heap.empty())
 	{
 		tmpScore = heap.begin()->first;
 		pageID = heap.begin()->second;
 		heap.erase(heap.begin());
-
 		if (pageID > MAXPAGEID)  // option processing
 		{
 			if (interval.size() < k)  // Phase I
 			{
 				interval.emplace_back(pageID - MAXPAGEID, 0);
-			}
+                incompSet.push_back(pageID - MAXPAGEID);
+            }
 			else
 			{
 				if (candidateRet.size() < X - k)  // Phase II
 				{
-					tmpRadius = computeradius(k, dimen, pageID - MAXPAGEID, userpref, incompSet, PG);
+					tmpRadius = computeradius(k, dimen, pageID - MAXPAGEID, userpref, incompSet, PG, radius);
 					if(tmpRadius!=INFINITY){
                         candidateRet.emplace(tmpRadius, pageID-MAXPAGEID);
                         if(candidateRet.size()==X-k)
@@ -350,14 +345,6 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
                             radius = min(radius, candidateRet.begin()->first);
                         }
 					}
-					// begin: use for DEBUG
-//					else{
-//					    if(!flag){
-//					        cout<<interval.back().second<<endl;
-//					        flag=true;
-//					    }
-//					}
-                    // end: use for DEBUG
                 }
 				else if(X<=k)
 				{
@@ -376,8 +363,11 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
                         radius = min(candidateOpt.first, radius);
                     }
 				}
+				if(tmpRadius!=INFINITY){
+				    //TODO think through it
+                    incompSet.push_back(pageID - MAXPAGEID);
+                }
 			}
-            incompSet.push_back(pageID - MAXPAGEID);
         }
 		else // internal and leaf nodes processing
 		{
@@ -434,26 +424,19 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
                             heap.emplace(tmpScore, node->m_entry[i]->m_id);
                         }
                     }
-					
 				}
 			}
 		}
 	}
-
     for (auto riter=candidateRet.rbegin();riter!=candidateRet.rend();++riter) {
         interval.emplace_back(riter->second, riter->first);
     }
-//    for (pair<long int, float> &p:interval) {
-//        cout<<p.second<<endl;
-//    }
 	if(interval.size()<X){
 	    return INFINITY;
 	}else{
         return radius;
     }
 }
-
-
 
 unknown_X_node::unknown_X_node(int d,  const float *dt, int pid){
         dim=d;
@@ -464,7 +447,6 @@ unknown_X_node::unknown_X_node(int d,  const float *dt, int pid){
 }
 
 float unknown_X_node::radius_LB(){
-//        assert(!topK_dominate_radius.empty());
     return *topK_dominate_radius.begin();
 }
 
@@ -483,11 +465,6 @@ void unknown_X_node::init_radius(vector<long int> &fetched_options, float **Poin
 inline bool unknown_X_node::update(int need_to_update) const{// used in unknown efficient
     return this->tau>=need_to_update;
 }
-
-//inline bool update() const{
-//    return
-//}
-
 
 void unknown_X_node::update_radius(vector<long int>::iterator begin, vector<long int>::iterator end, float **PointSet, vector<float> &w, float rho){
     for (; begin!=end; ++begin) {

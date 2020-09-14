@@ -392,9 +392,6 @@ int main(const int argc, const char** argv)
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
     }
-//    void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
-//                   vector<pair<int, double>> &utk_option_ret,
-//                   vector<pair<vector<int>, vector<vector<double>>>> &utk_cones_ret)
     if (strcmp(methodName, "UTK_BB") == 0) // utk baseline
     {
         at = clock();
@@ -413,10 +410,6 @@ int main(const int argc, const char** argv)
                 cout << w[di] << ", ";
             }
             cout <<w.back()<< endl;
-
-            //    void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
-//                   vector<pair<int, double>> &utk_option_ret,
-//                   vector<pair<vector<int>, vector<vector<double>>>> &utk_cones_ret)
             vector<pair<int, double>> utk_option_ret;
             vector<pair<vector<int>, vector<vector<double>>>> utk_cones_ret;
             utk_basic(PointSet, dim, w, rtree, X, k, utk_option_ret, utk_cones_ret);
@@ -448,10 +441,6 @@ int main(const int argc, const char** argv)
                 cout << w[di] << ", ";
             }
             cout <<w.back()<< endl;
-
-            //    void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
-//                   vector<pair<int, double>> &utk_option_ret,
-//                   vector<pair<vector<int>, vector<vector<double>>>> &utk_cones_ret)
             vector<pair<int, double>> utk_option_ret;
             vector<pair<double, region*>> utk_cones_ret;
             utk_efficient(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);

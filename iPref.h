@@ -26,8 +26,7 @@ bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weigh
 vector<float> computePairHP(const int dimen, float* PG[], long int pi, long int pj);
 
 // compute the distance from w to hyperplane HS
-float computeDis(vector<float> tmpHS, vector<float> userpref);
-
+float computeDis(const vector<float> &tmpHS, const vector<float> &userpref);
 // sort pair
 bool sortbysec(const pair<long int, float> &a, const pair<long int, float> &b);
 
