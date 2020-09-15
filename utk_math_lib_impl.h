@@ -311,7 +311,13 @@ bool isR_skyband(const VV &PG, const VI&vs, const VF &opt, const VF &w, const FL
 template<typename V, typename VV, typename FLOAT>
 bool v2_r_dominate_v1(const V &v1, const V &v2, const V &w, const VV &r_domain_vec, const FLOAT &rho) {
     for (const V &v:r_domain_vec) {
-        V tmp_w = w + rho * v;
+        double atc_rho=rho;
+        for (int i = 0; i < v.size(); ++i) {
+            if(v[i]<0){
+                atc_rho=min(atc_rho, -w[i]/v[i]); // in case of w[i] + \rho * v[i] <0 or >1
+            }
+        }
+        V tmp_w = w + atc_rho * v;
         if (v1 * tmp_w < v2 * tmp_w) {
             return false;
         }

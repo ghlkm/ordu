@@ -33,13 +33,47 @@ double totalSpaceCost = 0.0; // space cost (MB)
 double treeSpacecost = 0.0;
 double Spacecost = 0.0;
 clock_t at, ad;
-
+//#include "lp_lib/lp_lib.h"
+//int lp_solve_test(){
+//    lprec *lp;
+//
+//    /* Create a new LP model */
+//    lp = make_lp(0, 2);
+//    if(lp == NULL) {
+//        fprintf(stderr, "Unable to create new LP model\n");
+//        return(1);
+//    }
+////    set_verbose(lp, IMPORTANT);
+////    set_scaling(lp, SCALE_GEOMETRIC + SCALE_EQUILIBRATE + SCALE_INTEGERS);
+//    set_add_rowmode(lp, TRUE);
+//    REAL r1[]={0, 1.0, 2.0};
+//    add_constraint(lp, r1, GE, 0.0);
+//    REAL r2[]={0, 1.0, 1.0};
+//    add_constraint(lp, r2, GE, 1.0);
+//    REAL r3[]={0, 0.0, -1.0};
+//    add_constraint(lp, r3, GE, -1.0);
+//    REAL r4[]={0, -1.0, 0.0};
+//    add_constraint(lp, r4, GE, -1.0);
+//    set_add_rowmode(lp, FALSE);
+//    set_timeout(lp, 1);
+//
+//    cout << solve(lp) << endl;
+//    int ccnt=get_Nrows(lp);
+//    REAL *constr=new REAL[ccnt]();
+//    get_constraints(lp, constr);
+//    for (int i = 0; i <ccnt ; ++i) {
+//        cout<<constr[i]<<endl;
+//    }
+//    delete_lp(lp);
+//    delete [] (constr);
+//    return(0);
+//}
 int main(const int argc, const char** argv)
 {
 	cout.precision(6);
 	cout << "iPref Problem (Size-constrained R-kSkyband/UTK )" << endl;
 	clock_t at, ad;
-	
+
 	// parameter parser
 	cout << "Parse Parameters" << endl;
 	if (argc == 1)
@@ -54,7 +88,7 @@ int main(const int argc, const char** argv)
 	const int X = atoi(Param::read(argc, argv, "-X", ""));
 	const char* methodName = Param::read(argc, argv, "-m", "");
     int w_num = atoi(Param::read(argc, argv, "-w", "")); // the number of tested user weights
-
+    int n=atoi(Param::read(argc, argv, "-n", ""));
 //    write file format:
 //      <k1, w_11, w_12, w_13, ..., w_1d>
 //      <k2, w_21, w_22, w_23, ..., w_2d>
@@ -83,7 +117,7 @@ int main(const int argc, const char** argv)
 	RtreeNodeEntry** p = new RtreeNodeEntry*[MAXPTS];
 	fpdata.open(datafile, ios::in);
 
-	while (true)
+	while (n--)
 	{
 		int id;
 		float* cl = new float[dim];
@@ -140,7 +174,7 @@ int main(const int argc, const char** argv)
     g_r_domain_vec=gen_r_domain_vec(dim);
     if (strcmp(methodName, "BB") == 0)
 	{
-		// baseline algorithm 
+		// baseline algorithm
 		// (1) compute k-skyband set SK
 		// (2) for each pi, suppose T_pi is the incomparable set (a) p_j is incomparable with p_i in SK, (2) p_j w > p_i w
 		// (3) for each p in T_pi, compute the distance from point w to hyperplane H_{i,j} equation: d = \frac{a1 w1 +  a2 w2 + ... ad_1 wd-1+D}{\sqrt{a1^2+a2^2+ ... + ad-1^2}}
@@ -148,14 +182,13 @@ int main(const int argc, const char** argv)
 		// (5) pi's rksykband interval: inf_pi to infinity
 		// (6) the radius rho is the T-th minimum value in all pi in SK
 
-		at = clock(); 
+		at = clock();
 		for (int wi = 0; wi < w_num; wi++)
 		{
 			vector<long int> skyband;
 			int k=ks[wi];
 			kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
-			cout << skyband.size() << endl;
-
+            cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
 			// weight vector for testing, we should remove the redundant one
 			vector<float> w(ws[wi].begin(), ws[wi].end());
 
@@ -280,7 +313,7 @@ int main(const int argc, const char** argv)
 		cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
 	}
 
-	
+
 	// inclremental version, without known X
 	// We do not have exact X, we need tell the user the radius rho and its corresponding T
 	// It is similar to optimized algorithm, however, it computes incrementally, from rho = 0 to infinity, the size T is from k to k-skyband.
@@ -453,13 +486,13 @@ int main(const int argc, const char** argv)
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
     }
-//    ofstream myfile;
-//    myfile.open ("result2.txt", ios::out | ios::app | ios::binary);
-//    myfile <<fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num)<<": ";
-//    for (int l = 0; l < argc; ++l) {
-//        myfile<< argv[l]<<" ";
-//    }
-//    myfile<<endl;
-//    myfile.close();
+    ofstream myfile;
+    myfile.open ("result2.txt", ios::out | ios::app | ios::binary);
+    myfile <<fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num)<<": ";
+    for (int l = 0; l < argc; ++l) {
+        myfile<< argv[l]<<" ";
+    }
+    myfile<<endl;
+    myfile.close();
 	return 0;
 }

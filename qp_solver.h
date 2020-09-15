@@ -8,6 +8,7 @@
 #include "osqp.h"
 #include <vector>
 #include <cassert>
+#include <chrono>
 
 using namespace std;
 
@@ -194,7 +195,11 @@ public:
     inline FLOAT update_w_h_solve(const vector<FLOAT> &w, const vector<FLOAT> &h);
 
     inline c_float solve(){
+//        auto begin = chrono::steady_clock::now();
         osqp_solve(work);
+//        auto now = chrono::steady_clock::now();
+//        chrono::duration<double> elapsed_seconds= now-begin;
+//        cout<< A_x.size() << "," << elapsed_seconds.count() << "\n";
         c_float ret=2*work->info->obj_val+w_L2;
         return ret>=0?sqrt(ret):0;
     }

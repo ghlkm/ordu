@@ -49,6 +49,7 @@ private:
     multiset<float> topK_dominate_radius;// size with k
 public:
     int tau;// used in unknown efficient
+    int needed_to_update;
     const float *data;
     int page_id;
     bool fetched;
@@ -59,7 +60,7 @@ public:
 
     inline bool update(int need_to_update) const;
 
-//    inline bool update() const;
+    inline bool update() const;
 
     void update_radius(vector<long int>::iterator begin, vector<long int>::iterator end, float **PointSet, vector<float> &w, float rho=INFINITY);
 

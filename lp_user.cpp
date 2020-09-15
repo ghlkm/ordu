@@ -32,11 +32,18 @@ bool isFeasible(vector<vector<double>> &r1,  vector<vector<double>> &r2){
     set_scaling(lp, SCALE_GEOMETRIC + SCALE_EQUILIBRATE + SCALE_INTEGERS);
     set_add_rowmode(lp, TRUE);
     lpModel(lp, dim);
+    vector<double> tmp(dim+1);
     for (vector<double> &r1i:r1) {
-        add_constraint(lp, r1i.data(), LE, 0.0);
+        for (int i = 0; i <dim ; ++i) {
+            tmp[i+1]=r1i[i];
+        }
+        add_constraint(lp, tmp.data(), LE, 0.0);
     }
     for (vector<double> &r2i:r2) {
-        add_constraint(lp, r2i.data(), LE, 0.0);
+        for (int i = 0; i <dim ; ++i) {
+            tmp[i+1]=r2i[i];
+        }
+        add_constraint(lp, tmp.data(), LE, 0.0);
     }
 
     set_add_rowmode(lp, FALSE);

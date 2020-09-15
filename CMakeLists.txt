@@ -31,8 +31,7 @@ include_directories(${CMAKE_SOURCE_DIR}/lp_lib)
 
 include_directories(.)
 
-add_executable(${PROJECT_NAME}
-        collection.cpp
+add_executable(iPref collection.cpp
         collection.h
         filemem.cpp
         filemem.h
@@ -113,7 +112,9 @@ add_executable(${PROJECT_NAME}
         lp_lib/lp_simplex.c
         lp_lib/lp_SOS.c
         lp_lib/lp_utils.c
-        lp_lib/lp_wlp.c lp_user.cpp lp_user.h)
+        lp_lib/lp_wlp.c
+        lp_user.cpp
+        lp_user.h)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE osqp::osqpstatic)
 target_link_libraries(${PROJECT_NAME} PRIVATE libqhullcpp)
