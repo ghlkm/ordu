@@ -523,6 +523,9 @@ float computeRho_unknownX_basic(const int dimen, const int k, const int X, vecto
     unknown_X_node *zeros_node=new unknown_X_node(dimen, zeros.data(), -1);
     unknown_X_node *rt=new unknown_X_node(dimen, ones.data(), a_rtree.m_memory.m_rootPageID);
     heap.emplace(INFINITY, rt);
+    vector<unknown_X_node*> to_dl; // todo change into intel pointer
+    to_dl.push_back(zeros_node);
+    to_dl.push_back(rt);
     while (!heap.empty() && interval.size()<X)
     {
         unknown_X_node *popped_node=heap.begin()->second;
@@ -590,6 +593,7 @@ float computeRho_unknownX_basic(const int dimen, const int k, const int X, vecto
                         tmpScore += pt[j] * userpref[j];
                     }
                     unknown_X_node *tmp_node=new unknown_X_node(dimen, PG[node->m_entry[i]->m_id], node->m_entry[i]->m_id + MAXPAGEID);
+                    to_dl.push_back(tmp_node);
                     heap.emplace(tmpScore, tmp_node);
                     if(interval.size()>=k) {
                         tmp_node->init_radius(incompSet, PG, userpref, k);
@@ -609,6 +613,7 @@ float computeRho_unknownX_basic(const int dimen, const int k, const int X, vecto
                     }
                     const float *ptr=node->m_entry[i]->m_hc.getUpper().m_coor;
                     unknown_X_node *tmp_node=new unknown_X_node(dimen, ptr, node->m_entry[i]->m_id);
+                    to_dl.push_back(tmp_node);
                     heap.emplace(tmpScore, tmp_node);
                     if(interval.size()>=k) {
                         tmp_node->init_radius(incompSet, PG, userpref, k);
@@ -630,7 +635,7 @@ float computeRho_unknownX_basic(const int dimen, const int k, const int X, vecto
                 // if LB is an option and is updated, add it to result list "interval"
                 interval.emplace_back(LB.second->page_id - MAXPAGEID, LB.second->radius_LB());
                 S.erase(LB.second);
-                delete(LB.second);
+//                delete(LB.second);
                 if (interval.size() == X) {
                     break;
                 }
@@ -646,10 +651,10 @@ float computeRho_unknownX_basic(const int dimen, const int k, const int X, vecto
         }
     }
 
-    for(unknown_X_node *node:S){
+    for(unknown_X_node *node:to_dl){
         delete (node);
     }
-    delete(zeros_node);
+//    delete(zeros_node);
     if(X<=k){
         return 0;
     }else if(interval.size()<X){
@@ -1076,6 +1081,7 @@ public:
                     }
                 }
                 assert(pd_ids[i]>=0 && pd_ids[i<=objCnt]);
+                nei_f_s.erase(pd_ids[i]);
                 ret[pd_ids[i]]=vector<int>(nei_f_s.begin(), nei_f_s.end());
             }
         }
@@ -1366,7 +1372,11 @@ void top_region(const vector<int> &opt_idxes, float **PG, vector<vector<double>>
     rbox.appendPoints(is);
     Qhull q(rbox, "");
     qhull_user qu;
-    qu.get_neiFacetsNorm_of_point(q, opt_idxes, ret);
+    unordered_map<int, vector<vector<double>>> points;
+    qu.get_neiFacetsNorm_of_point(q, opt_idxes, points);
+    for (auto &pt:points) {
+        ret[pt.first]=points_to_halfspace(pt.second);
+    }
 }
 
 
@@ -1494,8 +1504,8 @@ class ch{
 
 
 
-bool region_overlap(vector<vector<double>> &r1, vector<vector<double>> &r2){
-    return isFeasible(r1, r2);
+bool region_overlap(vector<vector<double>> &r1, vector<vector<double>> &r2, vector<vector<double>> &r1_r2){
+    return isFeasible(r1, r2, r1_r2);
 }
 
 float dist_region_w(vector<vector<double>> &region, vector<float> &w){
@@ -1528,7 +1538,8 @@ void topRegions(vector<vector<double>> &parent_region, const vector<int> &CH_upd
     vector<vector<double>> square_vertexes(d+1, vector<double>(d));
     unordered_map<int, vector<vector<double>>> tops_region=top_region(CH_upd, PG, square_vertexes);
     for(auto &opt_r: tops_region){
-        if(region_overlap(parent_region, opt_r.second)){
+        vector<vector<double>> new_region;
+        if(region_overlap(parent_region, opt_r.second, new_region)){
             // update topi
             vector<int> topi1=topi;
             assert(opt_r.first>=0 && opt_r.first<=objCnt);
@@ -1538,11 +1549,6 @@ void topRegions(vector<vector<double>> &parent_region, const vector<int> &CH_upd
             const vector<int> &aps=ch_obj.get_neighbor_vertex(opt_r.first); // TOREAD
             for(int ap:aps){
                 new_nei.push_back(ap);
-            }
-            // sub-region
-            vector<vector<double>> new_region=parent_region;
-            for(vector<double> &r:opt_r.second){
-                new_region.push_back(r);
             }
             // judge whether need next CH layers
             int deeper=max(deepest_layer, ch_obj.get_option_layer(opt_r.first));
@@ -1570,12 +1576,18 @@ void topRegions_efficient(vector<vector<double>> &parent_region, ch &ch_obj,
                 unordered_map<int, vector<vector<double>>> &top1_region){
     // init "top1_calculated" with top1 respecting to w
     unordered_set<int> options;
+    for (int i:top1_calculated) {
+        options.insert(i);
+    }
+//    set<vector<int>> t;
     int cnt=0;
     while(options.size() < X && !id_radius.empty()){
-        pair<double, region*> popped=*id_radius.begin();
+        const pair<double, region*> &popped=*id_radius.begin();
         id_radius.erase(id_radius.begin());
         if(popped.second->topk.size()==k){ // a region that don't need to be partitioned
             bool new_option=False;
+            cout<<options.size()<<": ";
+            cout<<popped.second->topk<<endl;
             for (int opt:popped.second->topk) {
                 auto iter=options.find(opt);
                 if(iter==options.end()){// new option
@@ -1586,12 +1598,11 @@ void topRegions_efficient(vector<vector<double>> &parent_region, ch &ch_obj,
             }
             if(new_option){
                 popped.second->setRadius(popped.first);
-                utk_cones_ret.emplace_back(popped);
-            }else{
-                delete(popped.second);
             }
-        }
-        else{
+            utk_cones_ret.emplace_back(popped);
+//            assert(t.find(popped.second->topk)==t.end());
+//            t.insert(popped.second->topk);
+        }else{
             if(popped.second->topk.size()==1){
                 // if it is top1, push its adjacent vertex
                 const vector<int> &top1_adj=ch_obj.get_neighbor_vertex(popped.second->topk.front());
@@ -1602,13 +1613,10 @@ void topRegions_efficient(vector<vector<double>> &parent_region, ch &ch_obj,
                     top1_calculated.insert(adj_opt);
                     auto iter = top1_region.find(adj_opt);
                     assert(iter!=top1_region.end());
-                    if(region_overlap(parent_region, iter->second)){
+                    vector<vector<double>> new_region;
+                    if(region_overlap(parent_region, iter->second, new_region)){
                         vector<int> tmp;
                         tmp.push_back(adj_opt);
-                        vector<vector<double>> new_region(parent_region);
-                        for (vector<double> &its_own_topr: iter->second) {
-                            new_region.push_back(its_own_topr);
-                        }
                         region *r=new region(tmp, new_region);
                         id_radius.emplace(dist_region_w(new_region, w), r);
                         cnt++;
@@ -1636,14 +1644,11 @@ void topRegions_efficient(vector<vector<double>> &parent_region, ch &ch_obj,
             for (int ch_upd_opt: ch_upd_s) {
                 auto iter = tops_region.find(ch_upd_opt);
                 if(iter!=tops_region.end()){
-                    if(region_overlap(popped.second->cone, iter->second)){
+                    vector<vector<double>> new_region;
+                    // TODO here is deep copy maybe faster if shadow copy
+                    if(region_overlap(popped.second->cone, iter->second, new_region)){
                         vector<int> tmp(popped.second->topk);
                         tmp.push_back(ch_upd_opt);
-                        // TODO here is deep copy maybe faster if shadow copy
-                        vector<vector<double>> new_region(popped.second->cone);
-                        for (vector<double> &its_own_topr: iter->second) {
-                            new_region.push_back(its_own_topr);
-                        }
 //                        cout<< iter->second.size() <<"\n";
                         region *r=new region(tmp, new_region);
                         id_radius.emplace(dist_region_w(new_region, w), r);
@@ -2013,6 +2018,23 @@ void utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, in
     multimap<double, region*> id_radius; // <radius, region>
     vector<vector<double>> square_vertexes2(square_vertex_cnt, vector<double>(dim));
     unordered_map<int, vector<vector<double>>> top1_region=top_region(top1_idxes, PointSet, square_vertexes2);
+    for (auto &i:top1_region) {
+//        for(auto &j:top1_region){
+//            if(i!=j){
+//                vector<vector<double>> _;
+//                assert(!region_overlap(i.second, j.second, _));
+//            }
+//        }
+//        double t=1;
+        for (int l = 0; l <i.second.size() ; ++l) {
+            double tt=0;
+            for (int j = 0; j <dim ; ++j) {
+                tt+=w[j]*i.second[l][j];
+            }
+            cout<<tt<<",";
+        }
+        cout<<endl;
+    }
     now = chrono::steady_clock::now();
     elapsed_seconds= now-begin;
     cout<< elapsed_seconds.count() << " finish find top1 region" << endl;
@@ -2027,6 +2049,22 @@ void utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, in
     now = chrono::steady_clock::now();
     elapsed_seconds= now-begin;
     cout<< elapsed_seconds.count() << "starting recursively get top regions\n";
+//    for(vector<double> &i:top1_region[top1]){
+//        double tmp=0;
+//        for (int j = 0; j <dim ; ++j) {
+//            tmp+=w[j]*i[j];
+//        }
+//        cout<<tmp<<endl;
+//    }
+//    cout<<endl;
+//    for(vector<double> &i:begin_region){
+//        double tmp=0;
+//        for (int j = 0; j <dim ; ++j) {
+//            tmp+=w[j]*i[j];
+//        }
+//        cout<<tmp<<endl;
+//    }
+
     topRegions_efficient(begin_region, ch_obj, id_radius,  PointSet, dim, X,
                k,  w, top1_calculated, utk_option_ret, utk_cones_ret, top1_region);
     now = chrono::steady_clock::now();

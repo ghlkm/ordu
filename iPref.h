@@ -127,4 +127,6 @@ public:
 void utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
                    vector<pair<int, double>> &utk_option_ret,
                    vector<pair<double, region*>> &utk_cones_ret);
+
+vector<vector<double>> points_to_halfspace(vector<vector<double>> &points);
 #endif

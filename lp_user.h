@@ -5,5 +5,6 @@
 #ifndef IPREF_LP_USER_H
 #define IPREF_LP_USER_H
 #include <vector>
-bool isFeasible(std::vector<std::vector<double>> &r1,  std::vector<std::vector<double>> &r2);
+using namespace std;
+bool isFeasible(vector<vector<double>> &r1,  vector<vector<double>> &r2, vector<vector<double>> &r1_r2);
 #endif //IPREF_LP_USER_H

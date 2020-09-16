@@ -33,43 +33,56 @@ double totalSpaceCost = 0.0; // space cost (MB)
 double treeSpacecost = 0.0;
 double Spacecost = 0.0;
 clock_t at, ad;
-//#include "lp_lib/lp_lib.h"
-//int lp_solve_test(){
-//    lprec *lp;
-//
-//    /* Create a new LP model */
-//    lp = make_lp(0, 2);
-//    if(lp == NULL) {
-//        fprintf(stderr, "Unable to create new LP model\n");
-//        return(1);
-//    }
-////    set_verbose(lp, IMPORTANT);
-////    set_scaling(lp, SCALE_GEOMETRIC + SCALE_EQUILIBRATE + SCALE_INTEGERS);
-//    set_add_rowmode(lp, TRUE);
-//    REAL r1[]={0, 1.0, 2.0};
-//    add_constraint(lp, r1, GE, 0.0);
+#include "lp_lib/lp_lib.h"
+int lp_solve_test(){
+    lprec *lp;
+
+    /* Create a new LP model */
+    lp = make_lp(0, 2);
+    if(lp == NULL) {
+        fprintf(stderr, "Unable to create new LP model\n");
+        return(1);
+    }
+//    set_verbose(lp, IMPORTANT);
+//    set_scaling(lp, SCALE_GEOMETRIC + SCALE_EQUILIBRATE + SCALE_INTEGERS);
+    set_add_rowmode(lp, TRUE);
+    REAL r1[]={0, 1.0, 2.0};
+    add_constraint(lp, r1, GE, 0.0);
 //    REAL r2[]={0, 1.0, 1.0};
 //    add_constraint(lp, r2, GE, 1.0);
-//    REAL r3[]={0, 0.0, -1.0};
-//    add_constraint(lp, r3, GE, -1.0);
-//    REAL r4[]={0, -1.0, 0.0};
-//    add_constraint(lp, r4, GE, -1.0);
-//    set_add_rowmode(lp, FALSE);
-//    set_timeout(lp, 1);
-//
-//    cout << solve(lp) << endl;
-//    int ccnt=get_Nrows(lp);
+    REAL r3[]={0, 0.0, -1.0};
+    add_constraint(lp, r3, GE, 0);
+    REAL r4[]={0, -0.9, -0.1};
+    add_constraint(lp, r4, GE, 0);
+    set_add_rowmode(lp, FALSE);
+    set_timeout(lp, 1);
+    set_presolve(lp, PRESOLVE_ROWS, 100);
+    solve(lp) ;
+//    REAL row[1+2];
+//    get_row(lp, 4, row);
+
+    print_constraints(lp, 1);
+    int ccnt=get_Nrows(lp);
+    for (int i = 1; i <=ccnt ; ++i) {
+        cout<<get_orig_index(lp, i)<<endl;
+    }
+//    REAL *pv=new REAL[1+ccnt+2]();
+//    get_primal_solution(lp, pv);
 //    REAL *constr=new REAL[ccnt]();
+////    REAL *constr;
+////    get_ptr_constraints(lp, &constr);
 //    get_constraints(lp, constr);
 //    for (int i = 0; i <ccnt ; ++i) {
-//        cout<<constr[i]<<endl;
+//        cout<<get_constr_value(lp, ccnt, 0, NULL, NULL)<<endl;
 //    }
-//    delete_lp(lp);
+    delete_lp(lp);
 //    delete [] (constr);
-//    return(0);
-//}
+    return(0);
+}
 int main(const int argc, const char** argv)
 {
+//    lp_solve_test();
+//    return 0;
 	cout.precision(6);
 	cout << "iPref Problem (Size-constrained R-kSkyband/UTK )" << endl;
 	clock_t at, ad;
@@ -182,15 +195,17 @@ int main(const int argc, const char** argv)
 		// (5) pi's rksykband interval: inf_pi to infinity
 		// (6) the radius rho is the T-th minimum value in all pi in SK
 
-		at = clock();
-		for (int wi = 0; wi < w_num; wi++)
+        int k=ks[0];
+        clock_t bat = clock();
+        vector<long int> skyband;
+        kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
+        clock_t bad = clock();
+        cout << "Total time cost: " << fixed << (bad - bat) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+        for (int wi = 0; wi < w_num; wi++)
 		{
-			vector<long int> skyband;
-			int k=ks[wi];
-			kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
-            cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
 			// weight vector for testing, we should remove the redundant one
-			vector<float> w(ws[wi].begin(), ws[wi].end());
+            clock_t wat = clock();
+            vector<float> w(ws[wi].begin(), ws[wi].end());
 
 			cout << "Testing w: ";
 			for (int di = 0; di < dim-1; di++)
@@ -262,24 +277,16 @@ int main(const int argc, const char** argv)
                     interval.emplace_back(skyband[ski], *radiusSKI.begin());
 				}
 			}
-//			assert(interval.size() >= X );
 			sort(interval.begin(), interval.end(), sortbysec);
 			for (auto i = 0; i < k; ++i) {
 				interval[i].first = topKRet[i];
 			}
-
-//			int cnt = 0;
-//			for (auto i = interval.begin(); i != interval.end(); ++i)
-//			{
-//				cout << i->second << ", " << i->first << endl;
-//				++cnt;
-//				if (cnt > X)
-//					break;
-//			}
 			cout << "The inflection radius is: " << interval[X].second << endl;
+            ad = clock();
+            cout << "Total time cost: " << fixed << (ad - wat) * 1.0 / (CLOCKS_PER_SEC*w_num) + (bad-bat)*1.0/CLOCKS_PER_SEC<< " SEC " << endl;
 		}
 		ad = clock();
-		cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+		cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) + (bad-bat)*1.0/CLOCKS_PER_SEC<< " SEC " << endl;
 	}
 	if (strcmp(methodName, "OA") == 0)
 	{
@@ -291,10 +298,14 @@ int main(const int argc, const char** argv)
 		// (5) shrinks p0 quicly, simulating a scanning from infinity to 0
 		// (6) fetching terminates none of options can be the r-skyband
 		// (7) append Q to T, this is the final result.
-
+        vector<pair<long int, float>> interval;
 		at = clock();
+        auto begin = chrono::steady_clock::now();
 		for (int wi = 0; wi < w_num; wi++)
 		{
+            clock_t wat = clock();
+            auto wbegin = chrono::steady_clock::now();
+
             int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
 			vector<float> w(ws[wi].begin(), ws[wi].end());
@@ -305,12 +316,20 @@ int main(const int argc, const char** argv)
 				cout << w[di] << ", ";
 			}
 			cout <<w.back()<< endl;
-            vector<pair<long int, float>> interval;
 			float rho = computeRho(dim, k, X, w, *rtree, PointSet, interval);
+			interval.clear();
 			cout << "The inflection radius is: " << rho << endl;
+            ad = clock();
+            cout << "Total time cost: " << fixed << (ad - wat) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << "\n";
+            auto now = chrono::steady_clock::now();
+            chrono::duration<double> elapsed_seconds= now-wbegin;
+            cout << elapsed_seconds.count() <<endl;
 		}
 		ad = clock();
-		cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+		cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << "\n";
+        auto now = chrono::steady_clock::now();
+        chrono::duration<double> elapsed_seconds= now-begin;
+        cout << elapsed_seconds.count()/w_num <<endl;
 	}
 
 
@@ -478,6 +497,9 @@ int main(const int argc, const char** argv)
             vector<pair<double, region*>> utk_cones_ret;
             utk_efficient(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
             double rho = utk_option_ret.back().second;
+            for (pair<double, region*> &tmp: utk_cones_ret) {
+                delete(tmp.second);
+            }
             cout << "The inflection radius is: " << rho << endl;
         }
 
@@ -487,7 +509,7 @@ int main(const int argc, const char** argv)
         chrono::duration<double> elapsed_seconds= now-begin;
     }
     ofstream myfile;
-    myfile.open ("result2.txt", ios::out | ios::app | ios::binary);
+    myfile.open ("result_ord.txt", ios::out | ios::app | ios::binary);
     myfile <<fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num)<<": ";
     for (int l = 0; l < argc; ++l) {
         myfile<< argv[l]<<" ";
