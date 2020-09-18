@@ -26,6 +26,7 @@ bool isFeasible(vector<vector<double>> &r1,  vector<vector<double>> &r2, vector<
     if(r1.empty() || r2.empty()){
         return true;
     }else{
+        assert(r1[0].size()==r2[0].size());
         dim=r1[0].size();
     }
     lprec *lp = make_lp(0, dim);
@@ -68,16 +69,16 @@ bool isFeasible(vector<vector<double>> &r1,  vector<vector<double>> &r2, vector<
     set_timeout(lp, 1);
     int ret = solve(lp);
     if(ret<=1){
-        int ccnt=get_Nrows(lp);
-        assert(ccnt>0);
-        vector<int> simplify(ccnt);
-        for (int i = 1; i <=ccnt ; ++i) {
-            simplify[i-1]=get_orig_index(lp, i)-1;
-        }
-//        vector<int> simplify(r1.size()+r2.size());
-//        for (int i = 1; i <=r1.size()+r2.size(); ++i) {
-//            simplify[i-1]=i-1;
+//        int ccnt=get_Nrows(lp);
+//        assert(ccnt>0);
+//        vector<int> simplify(ccnt);
+//        for (int i = 1; i <=ccnt ; ++i) {
+//            simplify[i-1]=get_orig_index(lp, i)-1;
 //        }
+        vector<int> simplify(r1.size()+r2.size());
+        for (int i = 1; i <=r1.size()+r2.size(); ++i) {
+            simplify[i-1]=i-1;
+        }
         for (int idx: simplify) {
 //            if(idx>=r1.size()+r2.size()){
 //                continue;

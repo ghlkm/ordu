@@ -43,6 +43,9 @@ float computeRho_unknownX_efficient(const int dimen, const int k, const int X, v
 // compute the radius in phase 2, optimized algorithm
 float computeradius(const int k, const int dim, long int pi, vector<float>& userpref, vector<long int>& incompSet, float* PG[], float rho=INFINITY);
 
+
+
+
 class unknown_X_node{
 private:
     int dim;
@@ -67,6 +70,167 @@ public:
     void update_radius(const float* other_option, vector<float> &w);
 
     void update_radius_erase(const float* other_option, vector<float> &w);
+};
+
+class unknown_x_baseline{
+    multimap<float, unknown_X_node*, greater<float>> heap; //BBS heap, <w\cdot node, node>, if node is an option then node=id+MAXPAGEID
+    unordered_set<unknown_X_node*> S;
+    vector<long int> incompSet;
+    float pt[MAXDIMEN];
+    vector<float> ones;
+    vector<float> zeros;
+    unknown_X_node *zeros_node;
+    unknown_X_node *rt;
+    vector<unknown_X_node*> to_dl; // todo change into intel pointer
+    int k;
+    vector<float> userpref;
+    float** PG;
+    int dimen;
+    int next;
+public:
+    vector<pair<int, float>> interval; // return
+    unknown_x_baseline(const int dim, const int K, vector<float>& userPref, Rtree& a_rtree, float** pg){
+        dimen=dim;
+        ones=vector<float>(dimen, 1);
+        zeros=vector<float>(dimen, 0);
+        zeros_node=new unknown_X_node(dimen, zeros.data(), -1);
+        rt=new unknown_X_node(dimen, ones.data(), a_rtree.m_memory.m_rootPageID);
+        heap.emplace(INFINITY, rt);
+        to_dl.push_back(zeros_node);
+        to_dl.push_back(rt);
+        k=K;
+        userpref=userPref;
+        PG=pg;
+        next=0;
+    }
+    pair<int, float> get_next(){
+        next++;
+        if(interval.size()>=next){
+            return interval[next-1];
+        }
+        while (!heap.empty())
+        {
+            if(interval.size()>=next){
+                return interval[next-1];
+            }
+            unknown_X_node *popped_node=heap.begin()->second;
+            popped_node->fetched=true;
+            int pageID = popped_node->page_id;
+            heap.erase(heap.begin());
+            if (pageID > MAXPAGEID)  // option processing
+            {
+                if (interval.size() < k)  // Phase (1)
+                {
+                    interval.emplace_back(pageID - MAXPAGEID, 0);
+                    if(interval.size()==k) // Phase (2)
+                    {
+                        //init S
+                        for (pair<int, float> &option:interval) {
+                            incompSet.push_back(option.first);
+                        }
+                        for(pair<const float, unknown_X_node *> &ele:heap)
+                        {
+                            unknown_X_node *node=ele.second;
+                            node->init_radius(incompSet, PG, userpref, k);
+                            S.insert(node);
+                        }
+                    }
+                    return interval.back();
+                }
+                else
+                {
+                    //update all element in S
+                    assert(!S.empty());
+                    for (unknown_X_node* node:S)
+                    {
+                        if (!node->fetched)
+                        {
+                            node->update_radius_erase(popped_node->data, userpref);
+                        }
+                    }
+                    incompSet.push_back(pageID - MAXPAGEID);
+                }
+            }
+            else // internal and leaf nodes processing
+            {
+                S.erase(popped_node);
+                RtreeNode* node = ramTree[pageID];
+                if (node->isLeaf())
+                {
+                    for (int i = 0; i < node->m_usedspace; i++)
+                    {
+                        float tmpScore = 0;
+                        for (int j = 0; j < dimen; j++)
+                        {
+                            pt[j] = node->m_entry[i]->m_hc.getCenter()[j];
+                            tmpScore += pt[j] * userpref[j];
+                        }
+                        unknown_X_node *tmp_node=new unknown_X_node(dimen, PG[node->m_entry[i]->m_id], node->m_entry[i]->m_id + MAXPAGEID);
+                        to_dl.push_back(tmp_node);
+                        heap.emplace(tmpScore, tmp_node);
+                        if(interval.size()>=k) {
+                            tmp_node->init_radius(incompSet, PG, userpref, k);
+                            S.insert(tmp_node);
+                        }
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < node->m_usedspace; i++)
+                    {
+                        float tmpScore = 0;
+                        for (int j = 0; j < dimen; j++)
+                        {
+                            pt[j] = node->m_entry[i]->m_hc.getUpper()[j];
+                            tmpScore += pt[j] * userpref[j];
+                        }
+                        const float *ptr=node->m_entry[i]->m_hc.getUpper().m_coor;
+                        unknown_X_node *tmp_node=new unknown_X_node(dimen, ptr, node->m_entry[i]->m_id);
+                        to_dl.push_back(tmp_node);
+                        heap.emplace(tmpScore, tmp_node);
+                        if(interval.size()>=k) {
+                            tmp_node->init_radius(incompSet, PG, userpref, k);
+                            S.insert(tmp_node);
+                        }
+                    }
+                }
+
+            }
+            if(interval.size()>=k) {
+                pair<float, unknown_X_node *> LB(INFINITY, zeros_node);
+                for (unknown_X_node *node:S) {
+                    if (node->radius_LB() < LB.first) {
+                        LB.first = node->radius_LB();
+                        LB.second = node;
+                    }
+                }
+                while (LB.second->page_id > MAXPAGEID && LB.second->fetched) {
+                    // if LB is an option and is updated, add it to result list "interval"
+                    interval.emplace_back(LB.second->page_id - MAXPAGEID, LB.second->radius_LB());
+                    S.erase(LB.second);
+//                delete(LB.second);
+//                    if (interval.size() == X) {
+//                        break;
+//                    }
+                    LB.first = INFINITY;
+                    LB.second = zeros_node;
+                    for (unknown_X_node *node:S) {
+                        if (node->radius_LB() < LB.first) {
+                            LB.first = node->radius_LB();
+                            LB.second = node;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ~unknown_x_baseline(){
+        for(unknown_X_node *node:to_dl){
+            delete (node);
+        }
+    }
+
+
 };
 
 class unknown_x_efficient {
@@ -124,7 +288,7 @@ public:
 };
 
 
-void utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
+int utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
                    vector<pair<int, double>> &utk_option_ret,
                    vector<pair<double, region*>> &utk_cones_ret);
 

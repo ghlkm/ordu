@@ -18,7 +18,7 @@ add_dependencies(libqhullcpp qhull)
 ### add osqp
 find_package(osqp REQUIRED)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed -O3 -Wall -ldl")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed -O3 -Wall -ldl -g")
 
 include_directories(${CMAKE_SOURCE_DIR}/lp_lib/bfp)
 include_directories(${CMAKE_SOURCE_DIR}/lp_lib/bfp/bfp_LUSOL)
@@ -114,7 +114,8 @@ add_executable(iPref collection.cpp
         lp_lib/lp_utils.c
         lp_lib/lp_wlp.c
         lp_user.cpp
-        lp_user.h)
+        lp_user.h qp_solver2.cpp qp_solver.h
+        Array.hh Array.cc QuadProg++.hh QuadProg++.cc)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE osqp::osqpstatic)
 target_link_libraries(${PROJECT_NAME} PRIVATE libqhullcpp)

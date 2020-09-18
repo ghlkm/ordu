@@ -127,7 +127,7 @@ inline FLOAT qp_solver::solve_update_h(const vector<FLOAT> &h){
     this->update_h(h);
     //the real dominate radius is
     // 2 * work->info->obj_val + w^T \cdot w
-    FLOAT ret=this->solve();
+    FLOAT ret= this->qp_solve();
     return ret;
 }
 
@@ -158,7 +158,7 @@ inline FLOAT qp_solver::update_w_h_solve(const vector<FLOAT> &w, const vector<FL
 //    assert(w.size()==dim);
 //    assert(h.size()==dim);
     this->update_w_h(w, h);
-    c_float ret=this->solve();
+    c_float ret= this->qp_solve();
     return (FLOAT)ret;
 }
 

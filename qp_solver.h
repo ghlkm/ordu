@@ -194,9 +194,12 @@ public:
     template<typename FLOAT>
     inline FLOAT update_w_h_solve(const vector<FLOAT> &w, const vector<FLOAT> &h);
 
-    inline c_float solve(){
+    inline c_float qp_solve(){
 //        auto begin = chrono::steady_clock::now();
-        osqp_solve(work);
+        int flag = osqp_solve(work);
+        if(flag!=0){
+            return INFINITY;
+        }
 //        auto now = chrono::steady_clock::now();
 //        chrono::duration<double> elapsed_seconds= now-begin;
 //        cout<< A_x.size() << "," << elapsed_seconds.count() << "\n";

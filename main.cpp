@@ -198,13 +198,19 @@ int main(const int argc, const char** argv)
         int k=ks[0];
         clock_t bat = clock();
         vector<long int> skyband;
+        auto kbegin = chrono::steady_clock::now();
         kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
+        auto kend = chrono::steady_clock::now();
+        at=clock();
+        auto begin = chrono::steady_clock::now();
+
         clock_t bad = clock();
-        cout << "Total time cost: " << fixed << (bad - bat) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+        cout << "Total time cost: " << fixed << (bad - bat) * 1.0 / (CLOCKS_PER_SEC) << " SEC " << endl;
         for (int wi = 0; wi < w_num; wi++)
 		{
 			// weight vector for testing, we should remove the redundant one
-            clock_t wat = clock();
+            auto wbegin = chrono::steady_clock::now();
+
             vector<float> w(ws[wi].begin(), ws[wi].end());
 
 			cout << "Testing w: ";
@@ -282,11 +288,14 @@ int main(const int argc, const char** argv)
 				interval[i].first = topKRet[i];
 			}
 			cout << "The inflection radius is: " << interval[X].second << endl;
-            ad = clock();
-            cout << "Total time cost: " << fixed << (ad - wat) * 1.0 / (CLOCKS_PER_SEC*w_num) + (bad-bat)*1.0/CLOCKS_PER_SEC<< " SEC " << endl;
+            auto now = chrono::steady_clock::now();
+            chrono::duration<double> elapsed_seconds= (now-wbegin)+(kend-kbegin);
+            cout << "Total time cost: " << elapsed_seconds.count()<< " SEC " << endl;
 		}
 		ad = clock();
-		cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) + (bad-bat)*1.0/CLOCKS_PER_SEC<< " SEC " << endl;
+        auto now = chrono::steady_clock::now();
+        chrono::duration<double> elapsed_seconds= (now-begin)/w_num+(kend-kbegin);
+        cout << "Total time cost: " << elapsed_seconds.count()<< " SEC " << endl;
 	}
 	if (strcmp(methodName, "OA") == 0)
 	{
@@ -368,6 +377,57 @@ int main(const int argc, const char** argv)
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
     }
 
+    if (strcmp(methodName, "UB_GN") == 0) // unknown X baseline get_next version
+    {
+        at = clock();
+        auto begin = chrono::steady_clock::now();
+        vector<double> avg_time(X);
+        vector<float> avg_radius(X);
+        for (int wi = 0; wi < w_num; wi++)
+        {
+            auto w_begin = chrono::steady_clock::now();
+            int k=ks[wi];
+            // weight vector for testing, we should remove the redundant one
+            vector<float> w(ws[wi].begin(), ws[wi].end());
+            cout << "Testing w: ";
+            for (int di = 0; di < dim-1; di++)
+            {
+                cout << w[di] << ", ";
+            }
+            cout <<w.back()<< endl;
+
+            unknown_x_baseline obj(dim, k, w, *rtree, PointSet);
+            for (int i = 0; i < X; ++i) {
+                obj.get_next();
+                auto now = chrono::steady_clock::now();
+                chrono::duration<double> elapsed_seconds= now-w_begin;
+                avg_time[i]+=elapsed_seconds.count();
+//                cout<<elapsed_seconds.count()<<"\n";
+            }
+            for (int i = 0; i < X; ++i) {
+                avg_radius[i]+=obj.interval[i].second;
+//                cout<<obj.interval[i].second<<"\n";
+            }
+//            pair<int, float> next=obj.get_next();
+//            while(!(next.second==INFINITY)){
+//                cout<<next.second<<"\n";
+//                next=obj.get_next();
+//            }
+            float rho = obj.interval.back().second;
+            cout << "The inflection radius is: " << rho << endl;
+        }
+
+        ad = clock();
+        cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+        for (double time:avg_time) {
+            cout<<time/w_num<<endl;
+        }
+        for (float radius:avg_radius) {
+            cout<<radius/w_num<<endl;
+        }
+        auto now = chrono::steady_clock::now();
+        chrono::duration<double> elapsed_seconds= now-begin;
+    }
     // inclremental version, without known X
     // We do not have exact X, we need tell the user the radius rho and its corresponding T
     // It is similar to optimized algorithm, however, it computes incrementally, from rho = 0 to infinity, the size T is from k to k-skyband.
@@ -475,14 +535,17 @@ int main(const int argc, const char** argv)
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
     }
+    double avg_rt_cnt=0;
+    double avg_rr_cnt=0;
     if (strcmp(methodName, "UTK_OA") == 0) // utk efficient
     {
         at = clock();
         auto begin = chrono::steady_clock::now();
-        vector<double> avg_time(X);
-        vector<float> avg_radius(X);
         for (int wi = 0; wi < w_num; wi++)
         {
+            if(wi!=w_num-1){
+                continue;
+            }
             auto w_begin = chrono::steady_clock::now();
             int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
@@ -495,7 +558,9 @@ int main(const int argc, const char** argv)
             cout <<w.back()<< endl;
             vector<pair<int, double>> utk_option_ret;
             vector<pair<double, region*>> utk_cones_ret;
-            utk_efficient(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
+            int generated_r_cnt= utk_efficient(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
+            avg_rt_cnt+=generated_r_cnt;
+            avg_rr_cnt+=utk_cones_ret.size();
             double rho = utk_option_ret.back().second;
             for (pair<double, region*> &tmp: utk_cones_ret) {
                 delete(tmp.second);
@@ -505,12 +570,15 @@ int main(const int argc, const char** argv)
 
         ad = clock();
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+        cout << "Total generated regions: " << avg_rt_cnt/w_num<<endl;
+        cout << "Total return regions: " << avg_rr_cnt/w_num<<endl;
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
     }
     ofstream myfile;
-    myfile.open ("result_ord.txt", ios::out | ios::app | ios::binary);
+    myfile.open ("result_oru.txt", ios::out | ios::app | ios::binary);
     myfile <<fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num)<<": ";
+    myfile << "(" << avg_rt_cnt/w_num << "," << avg_rr_cnt/w_num << ") ";
     for (int l = 0; l < argc; ++l) {
         myfile<< argv[l]<<" ";
     }
