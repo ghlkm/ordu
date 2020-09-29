@@ -13,8 +13,11 @@
 
 extern unordered_map<long int, RtreeNode*> ramTree;
 
+
+vector<int> computeTopK(const int dim, float* PG[], vector<int> &skyband, vector<float>& weight, int k);
+
 //compute Top-K result set
-vector<long int> computeTopK(const int dim, float* PG[], vector<long int> skyband, vector<float>& weight, int k);
+vector<long int> computeTopK(const int dim, float* PG[], vector<long int> &skyband, vector<float>& weight, int k);
 
 // Is pj dominate pi in traditional sense
 bool IsPjdominatePi(const int dimen, float* PG[], long int pi, long int pj);
@@ -293,4 +296,8 @@ int utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int
                    vector<pair<double, region*>> &utk_cones_ret);
 
 vector<vector<double>> points_to_halfspace(vector<vector<double>> &points);
+
+int utk_efficient_anti(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
+                       vector<pair<int, double>> &utk_option_ret,
+                       vector<pair<double, region*>> &utk_cones_ret);
 #endif

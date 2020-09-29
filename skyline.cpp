@@ -81,7 +81,7 @@ int countkDominator(const int dimen, const float pt[], vector<long> kskyband, fl
 	return count;
 }
 
-bool dominatedByK(const int dimen, const float pt[], vector<long> kskyband, float* PG[], int k)
+bool dominatedByK(const int dimen, const float pt[], vector<long> &kskyband, float* PG[], int k)
 {
     if (kskyband.empty())
         return false;
@@ -94,6 +94,34 @@ bool dominatedByK(const int dimen, const float pt[], vector<long> kskyband, floa
         for (int i = 0; i < dimen; i++)
         {
             if (PG[pid][i] + SIDELEN < pt[i])
+            {
+                dominated = false;
+                break;
+            }
+        }
+        if (dominated) {
+            count++;
+            if(count>=k){
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool dominatedByK_noSL(const int dimen, const float pt[], vector<long> &kskyband, float* PG[], int k)
+{
+    if (kskyband.empty())
+        return false;
+
+    int count = 0;
+    for (vector<long>::iterator iter = kskyband.begin(); iter != kskyband.end(); iter++)
+    {
+        long pid = *iter;
+        bool dominated = true;
+        for (int i = 0; i < dimen; i++)
+        {
+            if (PG[pid][i]< pt[i])
             {
                 dominated = false;
                 break;
