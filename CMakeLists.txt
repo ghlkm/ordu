@@ -18,7 +18,7 @@ add_dependencies(libqhullcpp qhull)
 ### add osqp
 find_package(osqp REQUIRED)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed -Q -Wall -ldl")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed -O3 -Wall -ldl")
 
 include_directories(${CMAKE_SOURCE_DIR}/lp_lib/bfp)
 include_directories(${CMAKE_SOURCE_DIR}/lp_lib/bfp/bfp_LUSOL)

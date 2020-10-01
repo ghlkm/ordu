@@ -55,9 +55,9 @@ private:
     multiset<float> topK_dominate_radius;// size with k
 public:
     int tau;// used in unknown efficient
-    int needed_to_update;
-    const float *data;
-    int page_id;
+    int needed_to_update; // need how many options to update this node's radius
+    const float *data;  // the values
+    int page_id;       // rtree pageid
     bool fetched;
     unknown_X_node(int d,  const float *dt, int pid);
     float radius_LB();
@@ -77,26 +77,24 @@ public:
 
 class unknown_x_baseline{
     multimap<float, unknown_X_node*, greater<float>> heap; //BBS heap, <w\cdot node, node>, if node is an option then node=id+MAXPAGEID
-    unordered_set<unknown_X_node*> S;
-    vector<long int> incompSet;
-    float pt[MAXDIMEN];
+    unordered_set<unknown_X_node*> S; // the nodes in rtree
+    vector<long int> incompSet;      // a list store the options that poped from rtree
+    float pt[MAXDIMEN]; //a tmp array
     vector<float> ones;
     vector<float> zeros;
     unknown_X_node *zeros_node;
     unknown_X_node *rt;
-    vector<unknown_X_node*> to_dl; // todo change into intel pointer
+    vector<unknown_X_node*> to_dl; // todo change into intel pointer // store the heap val that to be deleted
     int k;
     vector<float> userpref;
     float** PG;
     int dimen;
     int next;
 public:
-    vector<pair<int, float>> interval; // return
+    vector<pair<int, float>> interval; // return <option id, radius>
     unknown_x_baseline(const int dim, const int K, vector<float>& userPref, Rtree& a_rtree, float** pg);
     pair<int, float> get_next();
     ~unknown_x_baseline();
-
-
 };
 
 class unknown_x_efficient {

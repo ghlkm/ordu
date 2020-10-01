@@ -1,4 +1,4 @@
-
+// an interface for quadprog
 
 #ifndef IPREF_QP_SOLVER2_H
 #define IPREF_QP_SOLVER2_H

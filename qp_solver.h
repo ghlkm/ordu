@@ -1,5 +1,5 @@
 //
-// Created by likeming on 2020/8/24.
+// use osqp, this is unused in ORU because we choose quadprog in final
 //
 
 #ifndef TEST_QP_SOLVER_H

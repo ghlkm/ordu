@@ -44,6 +44,7 @@ public:
     }
 
     void get_neiVT_of_VT(Qhull &q, const vector<int>&pd_ids, unordered_map<int, vector<int>> &ret){
+        // given a solved Qhull obj q with pd_ids, return neigh vertex of id in pd_ids
         // return pdt_id
         auto pt_neiF = get_neiFacets_of_points(q, pd_ids);  // require index
         auto f_pt = get_points_of_facets(q, pd_ids); // require pdt_id
@@ -74,7 +75,8 @@ public:
     }
 
     vector<vector<int>> get_points_of_facets(Qhull &q, const vector<int> &pd_ids){
-        // return pdt_id
+        // return each facet's options
+        // return in form of pdt_id
         vector<vector<int>> ret;
         stringstream output;
         q.setOutputStream(&output);
@@ -98,6 +100,7 @@ public:
     }
 
     vector<int> get_CH_pointID(Qhull &q, const vector<int> &pd_ids){
+        // return the upper ch made by pd_ids
         stringstream output;
         q.setOutputStream(&output);
         q.outputQhull("Fx");
@@ -121,6 +124,7 @@ public:
     }
 
     void get_neiFacetsNorm_of_point(Qhull &q, const vector<int> &pd_ids, unordered_map<POINT_ID, REGION> &ret){
+        // get the neighbor facets' norm for each point in pd_ids
         // in form of index
         vector<vector<double>> facets_norms=get_norm_of_all_facets(q);
         vector<vector<int>> pt_neif=get_neiFacets_of_points(q, pd_ids);// in form with index
@@ -141,6 +145,7 @@ public:
     }
 
     vector<vector<double>> get_norm_of_all_facets(Qhull &q){
+        // get the norm of each facet, norm is pointing out ch
         stringstream outer_normstr;
         q.setOutputStream(&outer_normstr);
         q.outputQhull("n");
@@ -163,6 +168,7 @@ public:
     }
 
     vector<vector<double>> get_cone_norms(Qhull &q, vector<vector<double>> &points){
+        // trans the cone defined by points(norms) into halfspace form
         // make sure the first of Qhull input is \vec{0}_{d}
         stringstream opt_neibor_facets;
         q.setOutputStream(&opt_neibor_facets);

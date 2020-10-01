@@ -1,7 +1,7 @@
 # iPref
 
-the source code for the bounded size top-k query (r-kSkyband, UTK) problem.
+the source code for the bounded size top-k query (ORD, ORU) problem.
 
 to run:
 
--w 100 -d 4 -X 10 -f ./pdt/pdt4d400k.txt -m OA -W ./user/user4d200withK.txt -i ./idx/idx13.txt  
+-w 1 -k 5 -d 4 -X 50 -f ./pdt/pdt4d1600k.txt -m UTK_BB -W ./user/user4d200k.txt -n 400000 -i ./idx/idx7.txt 
