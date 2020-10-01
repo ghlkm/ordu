@@ -1,6 +1,3 @@
-//
-// Created by 12859 on 2020/9/21.
-//
 
 #ifndef IPREF_CASE_STUDY_H
 #define IPREF_CASE_STUDY_H

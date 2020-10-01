@@ -1,6 +1,4 @@
-//
-// Created by 12859 on 2020/9/17.
-//
+
 
 #include "qp_solver2.h"
 #include "cassert"
@@ -75,7 +73,6 @@ double qp_solver2(const vector<float>& w, const vector<vector<double>>& H){
     }
     x.resize(n);
     double solverret=solve_quadprog(G, g0, CE, ce0, CI, ci0, x);
-//    assert(solverret!=std::numeric_limits<double>::infinity());
     double ret=0;
     for (int k = 0; k < n; ++k) {
         ret+=(x[k]-w[k])*(x[k]-w[k]);
@@ -83,7 +80,7 @@ double qp_solver2(const vector<float>& w, const vector<vector<double>>& H){
     if(solverret==std::numeric_limits<double>::infinity()){
         return INFINITY;
     }
-    return ret;
+    return sqrt(ret);
 }
 
 

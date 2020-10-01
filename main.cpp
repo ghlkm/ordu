@@ -1,6 +1,3 @@
-/*----------------------- iPref problem ---------------
-----------------------DBGroup@SUSTech, 2020------------
--------------------- tangloner@gmail.com-------------*/
 
 #include <chrono>
 #include "header.h"
@@ -17,9 +14,6 @@
 #include "qp_solver.h"
 #include "utk_math_lib.h"
 #include "case_study.h"
-/*the headers for osqp solver*/
-//#include "qp_solver.h"
-//#include "osqp.h"
 
 // gobal variables
 vector<vector<float>> HalfSpaces; // halfspace 
@@ -34,56 +28,9 @@ double totalSpaceCost = 0.0; // space cost (MB)
 double treeSpacecost = 0.0;
 double Spacecost = 0.0;
 clock_t at, ad;
-#include "lp_lib/lp_lib.h"
-int lp_solve_test(){
-    lprec *lp;
 
-    /* Create a new LP model */
-    lp = make_lp(0, 2);
-    if(lp == NULL) {
-        fprintf(stderr, "Unable to create new LP model\n");
-        return(1);
-    }
-//    set_verbose(lp, IMPORTANT);
-//    set_scaling(lp, SCALE_GEOMETRIC + SCALE_EQUILIBRATE + SCALE_INTEGERS);
-    set_add_rowmode(lp, TRUE);
-    REAL r1[]={0, 1.0, 2.0};
-    add_constraint(lp, r1, GE, 0.0);
-//    REAL r2[]={0, 1.0, 1.0};
-//    add_constraint(lp, r2, GE, 1.0);
-    REAL r3[]={0, 0.0, -1.0};
-    add_constraint(lp, r3, GE, 0);
-    REAL r4[]={0, -0.9, -0.1};
-    add_constraint(lp, r4, GE, 0);
-    set_add_rowmode(lp, FALSE);
-    set_timeout(lp, 1);
-    set_presolve(lp, PRESOLVE_ROWS, 100);
-    solve(lp) ;
-//    REAL row[1+2];
-//    get_row(lp, 4, row);
-
-    print_constraints(lp, 1);
-    int ccnt=get_Nrows(lp);
-    for (int i = 1; i <=ccnt ; ++i) {
-        cout<<get_orig_index(lp, i)<<endl;
-    }
-//    REAL *pv=new REAL[1+ccnt+2]();
-//    get_primal_solution(lp, pv);
-//    REAL *constr=new REAL[ccnt]();
-////    REAL *constr;
-////    get_ptr_constraints(lp, &constr);
-//    get_constraints(lp, constr);
-//    for (int i = 0; i <ccnt ; ++i) {
-//        cout<<get_constr_value(lp, ccnt, 0, NULL, NULL)<<endl;
-//    }
-    delete_lp(lp);
-//    delete [] (constr);
-    return(0);
-}
 int main(const int argc, const char** argv)
 {
-//    lp_solve_test();
-//    return 0;
 	cout.precision(6);
 	cout << "iPref Problem (Size-constrained R-kSkyband/UTK )" << endl;
 	clock_t at, ad;
@@ -128,9 +75,6 @@ int main(const int argc, const char** argv)
 	// data loading
 	cout << "Load data points from file" << endl;
 	float** PointSet = new float*[MAXPTS + 1];
-//    for (int i1 = 0; i1 < dim; ++i1) {
-//        PointSet[0][i1]=0;
-//    }
 	RtreeNodeEntry** p = new RtreeNodeEntry*[MAXPTS];
 	fpdata.open(datafile, ios::in);
 
@@ -148,7 +92,6 @@ int main(const int argc, const char** argv)
 		for (int d = 0; d < dim; d++)
 		{
 			fpdata >> cl[d];
-//			PointSet[objCnt + 1][d] = min(cl[d]+1e-4, 1.0-SIDELEN);
             PointSet[objCnt + 1][d] = cl[d];
         }
 
@@ -156,7 +99,6 @@ int main(const int argc, const char** argv)
 		{
 			fpdata >> cu[d];
 			PointSet[objCnt + 1][d + dim] = cu[d];
-//            PointSet[objCnt + 1][d + dim] = min(cu[d]+1e-4, 1.0+SIDELEN);
         }
 
 		Hypercube hc(dim, cl, cu);
@@ -200,35 +142,10 @@ int main(const int argc, const char** argv)
 		// (4) compute the inflection point of pi: the k-th laregst value in step (3), denotes as inf_pi
 		// (5) pi's rksykband interval: inf_pi to infinity
 		// (6) the radius rho is the T-th minimum value in all pi in SK
-
         int k=ks[0];
         clock_t bat = clock();
         vector<long int> skyband;
         auto kbegin = chrono::steady_clock::now();
-//        int kc=0;
-//        for (int j = 1; j <= objCnt; ++j) {
-//            bool ff=false;
-//            for (int i = 1; i <=objCnt; ++i) {
-//                bool f=true;
-//                if(i==j){
-//                    continue;
-//                }
-//                for (int l = 0; l < dim; ++l) {
-//                    if(PointSet[j][l]>PointSet[i][l]){
-//                        f=false;
-//                    }
-//                }
-//                if(f){
-//                    ff=f;
-//                    break;
-//                }
-//            }
-//            if(!ff){
-//                kc++;
-//            }
-//        }
-//        cout<<kc<<endl;
-//        exit(0);
         kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
         cout<< skyband.size() << endl;
         auto kend = chrono::steady_clock::now();
@@ -371,8 +288,6 @@ int main(const int argc, const char** argv)
         chrono::duration<double> elapsed_seconds= now-begin;
         cout << elapsed_seconds.count()/w_num <<endl;
 	}
-
-
 	// inclremental version, without known X
 	// We do not have exact X, we need tell the user the radius rho and its corresponding T
 	// It is similar to optimized algorithm, however, it computes incrementally, from rho = 0 to infinity, the size T is from k to k-skyband.
@@ -407,7 +322,6 @@ int main(const int argc, const char** argv)
         ad = clock();
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
     }
-
     if (strcmp(methodName, "UB_GN") == 0) // unknown X baseline get_next version
     {
         at = clock();
@@ -433,17 +347,10 @@ int main(const int argc, const char** argv)
                 auto now = chrono::steady_clock::now();
                 chrono::duration<double> elapsed_seconds= now-w_begin;
                 avg_time[i]+=elapsed_seconds.count();
-//                cout<<elapsed_seconds.count()<<"\n";
             }
             for (int i = 0; i < X; ++i) {
                 avg_radius[i]+=obj.interval[i].second;
-//                cout<<obj.interval[i].second<<"\n";
             }
-//            pair<int, float> next=obj.get_next();
-//            while(!(next.second==INFINITY)){
-//                cout<<next.second<<"\n";
-//                next=obj.get_next();
-//            }
             float rho = obj.interval.back().second;
             cout << "The inflection radius is: " << rho << endl;
         }
@@ -483,7 +390,6 @@ int main(const int argc, const char** argv)
         ad = clock();
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
     }
-
     if (strcmp(methodName, "UA_GN") == 0) // unknown X efficient get_next version
     {
         vector<double> grank(X);
@@ -498,20 +404,6 @@ int main(const int argc, const char** argv)
             int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
             vector<float> w(ws[wi].begin(), ws[wi].end());
-//            multimap<double, int, greater<double>> m;
-//            for (int j = 1; j <=objCnt ; ++j) {
-//                double score=0;
-//                for (int i = 0; i < dim; ++i) {
-//                    score+=PointSet[j][i]*w[i];
-//                }
-//                m.emplace(score, j);
-//            }
-//            int rk=1;
-//            map<int, int> id_rk;
-//            for (const auto &pr: m) {
-//                id_rk[pr.second]=rk;
-//                rk++;
-//            }
 
             cout << "Testing w: ";
             for (int di = 0; di < dim-1; di++)
@@ -526,20 +418,10 @@ int main(const int argc, const char** argv)
                 auto now = chrono::steady_clock::now();
                 chrono::duration<double> elapsed_seconds= now-w_begin;
                 avg_time[i]+=elapsed_seconds.count();
-//                cout<<elapsed_seconds.count()<<"\n";
             }
-//            for (int l = 0; l < X; ++l) {
-//                grank[l]+=id_rk[obj.interval[l].first];
-//            }
             for (int i = 0; i < X; ++i) {
                 avg_radius[i]+=obj.interval[i].second;
-//                cout<<obj.interval[i].second<<"\n";
             }
-//            pair<int, float> next=obj.get_next();
-//            while(!(next.second==INFINITY)){
-//                cout<<next.second<<"\n";
-//                next=obj.get_next();
-//            }
             float rho = obj.interval.back().second;
             cout << "The inflection radius is: " << rho << endl;
         }
@@ -568,7 +450,6 @@ int main(const int argc, const char** argv)
         {
             auto w_begin = chrono::steady_clock::now();
             int k=ks[wi];
-            // weight vector for testing, we should remove the redundant one
             vector<float> w(ws[wi].begin(), ws[wi].end());
             cout << "Testing w: ";
             for (int di = 0; di < dim-1; di++)
@@ -599,9 +480,6 @@ int main(const int argc, const char** argv)
         vector<float> avg_radius(X, 0.0);
         for (int wi = 0; wi < w_num; wi++)
         {
-//            if(wi!=w_num-1){
-//                continue;
-//            }
             auto w_begin = chrono::steady_clock::now();
             int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
@@ -614,8 +492,8 @@ int main(const int argc, const char** argv)
             cout <<w.back()<< endl;
             vector<pair<int, double>> utk_option_ret;
             vector<pair<double, region*>> utk_cones_ret;
-            int generated_r_cnt= utk_efficient_anti(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
-//            int generated_r_cnt= utk_efficient(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
+//            int generated_r_cnt= utk_efficient_anti(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
+            int generated_r_cnt= utk_efficient(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
             avg_rt_cnt+=generated_r_cnt;
             avg_rr_cnt+=utk_cones_ret.size();
             cout<<"ret size: "<<utk_option_ret.size()<<"\n";
@@ -652,7 +530,7 @@ int main(const int argc, const char** argv)
         auto begin = chrono::steady_clock::now();
         for (int wi = 0; wi < w_num; wi++)
         {
-            if(wi!=w_num-1){
+            if(wi!=w_num-1){ // choose a weight rather than running all
                 continue;
             }
             auto w_begin = chrono::steady_clock::now();
@@ -688,7 +566,6 @@ int main(const int argc, const char** argv)
             sort(one_skyband.begin(), one_skyband.end(), [&do_cnt](int a, int b)->bool{
                 return do_cnt[a] >do_cnt[b];
             });
-//            vector<int> skyline_topm(one_skyband.begin(), one_skyband.end());
             vector<int> skyline_topm(one_skyband.begin(), one_skyband.size()>=X?one_skyband.begin()+X:one_skyband.end());
             set<int> sky_topm_s(skyline_topm.begin(), skyline_topm.end());
 
@@ -747,22 +624,22 @@ int main(const int argc, const char** argv)
             }
             cout<<endl;
             // M2
-//            cout<<"M2\n";
-//            for (int m:mv) {
-//                cout<< dist(skyline_topm.begin(), skyline_topm.begin()+m, oru_topm.begin(), oru_topm.begin()+m)<<"\n";
-//            }
-//            cout<<endl;
-//            // M3
-//            cout<<"M3\n";
-//            for (int m:mv) {
-//                cout<< dist(direct_topm.begin(), direct_topm.begin()+m, ord_topm.begin(), ord_topm.begin()+m)<<"\n";
-//            }
-//            cout<<endl;
-//            // M4
-//            cout<<"M4\n";
-//            for (int m:mv) {
-//                cout<< dist(direct_topm.begin(), direct_topm.begin()+m, oru_topm.begin(), oru_topm.begin()+m)<<"\n";
-//            }
+            cout<<"M2\n";
+            for (int m:mv) {
+                cout<< dist(skyline_topm.begin(), skyline_topm.begin()+m, oru_topm.begin(), oru_topm.begin()+m)<<"\n";
+            }
+            cout<<endl;
+            // M3
+            cout<<"M3\n";
+            for (int m:mv) {
+                cout<< dist(direct_topm.begin(), direct_topm.begin()+m, ord_topm.begin(), ord_topm.begin()+m)<<"\n";
+            }
+            cout<<endl;
+            // M4
+            cout<<"M4\n";
+            for (int m:mv) {
+                cout<< dist(direct_topm.begin(), direct_topm.begin()+m, oru_topm.begin(), oru_topm.begin()+m)<<"\n";
+            }
             cout<<endl;
             cout<<"topm=[\n"<<direct_topm<<"\n]\n";
             cout<<"ord=[\n"<<ord_topm<<"\n]\n";

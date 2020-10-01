@@ -1,6 +1,4 @@
-//
-// Created by 12859 on 2020/7/15.
-//
+
 
 #ifndef UTK_BV_UTK_MATH_LIB_H
 #define UTK_BV_UTK_MATH_LIB_H
@@ -77,9 +75,6 @@ bool v2_r_dominate_v1(const V &v1, const V &v2, const V &w, const VV &r_domain_v
 
 template<typename VF, typename VI, typename VV, typename FLOAT>
 bool isR_skyband(const VV &PG, const VI&vs, const VF &opt, const VF &w, const FLOAT &rho, int k);
-
-
-
 
 
 #include "utk_math_lib_impl.h"

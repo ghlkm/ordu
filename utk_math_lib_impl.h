@@ -1,6 +1,4 @@
-//
-// Created by 12859 on 2020/7/15.
-//
+
 #ifndef UTK_BV_UTK_MATH_LIB_IMPL_H
 #define UTK_BV_UTK_MATH_LIB_IMPL_H
 

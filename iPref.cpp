@@ -532,6 +532,145 @@ void unknown_X_node::update_radius_erase(const float* other_option, vector<float
     topK_dominate_radius.erase(topK_dominate_radius.begin());
 }
 
+unknown_x_baseline::unknown_x_baseline(const int dim, const int K, vector<float>& userPref, Rtree& a_rtree, float** pg){
+    dimen=dim;
+    ones=vector<float>(dimen, 1);
+    zeros=vector<float>(dimen, 0);
+    zeros_node=new unknown_X_node(dimen, zeros.data(), -1);
+    rt=new unknown_X_node(dimen, ones.data(), a_rtree.m_memory.m_rootPageID);
+    heap.emplace(INFINITY, rt);
+    to_dl.push_back(zeros_node);
+    to_dl.push_back(rt);
+    k=K;
+    userpref=userPref;
+    PG=pg;
+    next=0;
+}
+
+pair<int, float> unknown_x_baseline::get_next(){
+    next++;
+    if(interval.size()>=next){
+        return interval[next-1];
+    }
+    while (!heap.empty())
+    {
+        if(interval.size()>=next){
+            return interval[next-1];
+        }
+        unknown_X_node *popped_node=heap.begin()->second;
+        popped_node->fetched=true;
+        int pageID = popped_node->page_id;
+        heap.erase(heap.begin());
+        if (pageID > MAXPAGEID)  // option processing
+        {
+            if (interval.size() < k)  // Phase (1)
+            {
+                interval.emplace_back(pageID - MAXPAGEID, 0);
+                if(interval.size()==k) // Phase (2)
+                {
+                    //init S
+                    for (pair<int, float> &option:interval) {
+                        incompSet.push_back(option.first);
+                    }
+                    for(pair<const float, unknown_X_node *> &ele:heap)
+                    {
+                        unknown_X_node *node=ele.second;
+                        node->init_radius(incompSet, PG, userpref, k);
+                        S.insert(node);
+                    }
+                }
+                return interval.back();
+            }
+            else
+            {
+                //update all element in S
+                assert(!S.empty());
+                for (unknown_X_node* node:S)
+                {
+                    if (!node->fetched)
+                    {
+                        node->update_radius_erase(popped_node->data, userpref);
+                    }
+                }
+                incompSet.push_back(pageID - MAXPAGEID);
+            }
+        }
+        else // internal and leaf nodes processing
+        {
+            S.erase(popped_node);
+            RtreeNode* node = ramTree[pageID];
+            if (node->isLeaf())
+            {
+                for (int i = 0; i < node->m_usedspace; i++)
+                {
+                    float tmpScore = 0;
+                    for (int j = 0; j < dimen; j++)
+                    {
+                        pt[j] = node->m_entry[i]->m_hc.getCenter()[j];
+                        tmpScore += pt[j] * userpref[j];
+                    }
+                    unknown_X_node *tmp_node=new unknown_X_node(dimen, PG[node->m_entry[i]->m_id], node->m_entry[i]->m_id + MAXPAGEID);
+                    to_dl.push_back(tmp_node);
+                    heap.emplace(tmpScore, tmp_node);
+                    if(interval.size()>=k) {
+                        tmp_node->init_radius(incompSet, PG, userpref, k);
+                        S.insert(tmp_node);
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < node->m_usedspace; i++)
+                {
+                    float tmpScore = 0;
+                    for (int j = 0; j < dimen; j++)
+                    {
+                        pt[j] = node->m_entry[i]->m_hc.getUpper()[j];
+                        tmpScore += pt[j] * userpref[j];
+                    }
+                    const float *ptr=node->m_entry[i]->m_hc.getUpper().m_coor;
+                    unknown_X_node *tmp_node=new unknown_X_node(dimen, ptr, node->m_entry[i]->m_id);
+                    to_dl.push_back(tmp_node);
+                    heap.emplace(tmpScore, tmp_node);
+                    if(interval.size()>=k) {
+                        tmp_node->init_radius(incompSet, PG, userpref, k);
+                        S.insert(tmp_node);
+                    }
+                }
+            }
+
+        }
+        if(interval.size()>=k) {
+            pair<float, unknown_X_node *> LB(INFINITY, zeros_node);
+            for (unknown_X_node *node:S) {
+                if (node->radius_LB() < LB.first) {
+                    LB.first = node->radius_LB();
+                    LB.second = node;
+                }
+            }
+            while (LB.second->page_id > MAXPAGEID && LB.second->fetched) {
+                // if LB is an option and is updated, add it to result list "interval"
+                interval.emplace_back(LB.second->page_id - MAXPAGEID, LB.second->radius_LB());
+                S.erase(LB.second);
+                LB.first = INFINITY;
+                LB.second = zeros_node;
+                for (unknown_X_node *node:S) {
+                    if (node->radius_LB() < LB.first) {
+                        LB.first = node->radius_LB();
+                        LB.second = node;
+                    }
+                }
+            }
+        }
+    }
+}
+
+unknown_x_baseline::~unknown_x_baseline(){
+    for(unknown_X_node *node:to_dl){
+        delete (node);
+    }
+}
+
 float computeRho_unknownX_basic(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float** PG)
 {
     // phase (1) if get_next_time<=k, from BBS fetch topK
@@ -920,7 +1059,6 @@ inline bool unknown_X_node::update() const{
     return this->tau>=this->needed_to_update;
 }
 
-
 pair<int, float> unknown_x_efficient::get_next() {
     while (!heap.empty() || !C.empty()) {
         if (interval.size() >= k && !C.empty()) {
@@ -1085,215 +1223,6 @@ pair<int, float> unknown_x_efficient::get_next() {
 }
 
 
-class qhull_user{
-#define POINT_ID int
-#define REGION vector<vector<double>>
-public:
-    qhull_user(){
-    }
-//    qhull_user(Qhull &q, const vector<int> &pd_ids){
-//    }
-
-    void get_neiVT_of_VT(Qhull &q, const vector<int>&pd_ids, unordered_map<int, vector<int>> &ret){
-        // return pdt_id
-        auto pt_neiF = get_neiFacets_of_points(q, pd_ids);  // require index
-        auto f_pt = get_points_of_facets(q, pd_ids); // require pdt_id
-//        assert(pt_neiF.size()>=pd_ids.size());
-        for (int i = 0; i < pd_ids.size(); ++i) {
-            if(!pt_neiF[i].empty()){
-                unordered_set<int> nei_f_s;
-                for (int j = 0; j < pt_neiF[i].size(); ++j) {
-                    int f=pt_neiF[i][j];
-//                    assert(f<=f_pt.size() && f>=0);
-                    for (int k = 0; k < f_pt[f].size(); ++k) {
-//                        assert(f_pt[f][k]>=0  && f_pt[f][k]<=objCnt);
-                        nei_f_s.insert(f_pt[f][k]);
-                    }
-                }
-//                assert(pd_ids[i]>=0 && pd_ids[i]<=objCnt);
-                nei_f_s.erase(pd_ids[i]);
-                ret[pd_ids[i]]=vector<int>(nei_f_s.begin(), nei_f_s.end());
-            }
-        }
-    }
-
-    unordered_map<int, vector<int>> get_neiVT_of_VT(Qhull &q, const vector<int>&pd_ids){
-        // return pdt_id
-        unordered_map<int, vector<int>> ret;
-        get_neiVT_of_VT(q, pd_ids, ret);
-        return ret;
-    }
-
-    vector<vector<int>> get_points_of_facets(Qhull &q, const vector<int> &pd_ids){
-        // return pdt_id
-        vector<vector<int>> ret;
-        stringstream output;
-        q.setOutputStream(&output);
-        q.outputQhull("Fv");
-        int num_f;
-        output>>num_f;
-        int num_v;
-        int tmp;
-        for (int i = 0; i < num_f; ++i) {
-            output>>num_v;
-            vector<int> vs;
-            for (int j = 0; j <num_v ; ++j) {
-                output>>tmp;
-                if(tmp<pd_ids.size()){
-                    vs.push_back(pd_ids[tmp]);
-                }
-            }
-            ret.push_back(vs);
-        }
-        return ret;
-    }
-
-    vector<int> get_CH_pointID(Qhull &q, const vector<int> &pd_ids){
-        stringstream output;
-        q.setOutputStream(&output);
-        q.outputQhull("Fx");
-        vector<int> CH;
-        int num;
-        output>>num;
-        int tmp;
-        for (int i = 0; i < num; ++i) {
-            output>>tmp;
-            if(tmp<pd_ids.size()){
-                CH.push_back(pd_ids[tmp]);
-            }
-        }
-        return CH;
-    }
-
-    unordered_map<POINT_ID, REGION> get_neiFacetsNorm_of_point(Qhull &q, const vector<int> &pd_ids){
-        unordered_map<POINT_ID, REGION> pt_r;
-        get_neiFacetsNorm_of_point(q, pd_ids, pt_r);
-        return pt_r;
-    }
-
-    void get_neiFacetsNorm_of_point(Qhull &q, const vector<int> &pd_ids, unordered_map<POINT_ID, REGION> &ret){
-        // in form of index
-        vector<vector<double>> facets_norms=get_norm_of_all_facets(q);
-        vector<vector<int>> pt_neif=get_neiFacets_of_points(q, pd_ids);// in form with index
-        assert(pt_neif.size()>=pd_ids.size());
-        for (int i = 0; i <pd_ids.size() ; ++i) {
-            if(pt_neif[i].empty()){ // not a vertex
-
-            }else{ // is a vertex
-                vector<vector<double>> cone;
-                for (int j = 0; j < pt_neif[i].size(); ++j) {
-//                    assert(pt_neif[i][j]<facets_norms.size() && pt_neif[i][j]>=0);
-                    cone.push_back(facets_norms[pt_neif[i][j]]);
-                }
-//                assert(pd_ids[i]>=0 && pd_ids[i]<=objCnt);
-                ret[pd_ids[i]]=cone;
-            }
-        }
-    }
-
-    vector<vector<double>> get_norm_of_all_facets(Qhull &q){
-        stringstream outer_normstr;
-        q.setOutputStream(&outer_normstr);
-        q.outputQhull("n");
-        int dim_p1;
-        outer_normstr >> dim_p1;
-        int dim = dim_p1-1;
-        int num_facets;
-        outer_normstr >> num_facets;
-        vector<vector<double>> cone;
-        double offset;
-        for (int i = 0; i < num_facets; ++i) {
-            vector<double> n(dim);
-            for (int j = 0; j < dim; ++j) {
-                outer_normstr >> n[j];
-            }
-            outer_normstr >> offset; // offset
-            cone.push_back(n);
-        }
-        return cone;
-    }
-
-    vector<vector<double>> get_cone_norms(Qhull &q, vector<vector<double>> &points){
-        // make sure the first of Qhull input is \vec{0}_{d}
-        stringstream opt_neibor_facets;
-        q.setOutputStream(&opt_neibor_facets);
-        q.outputQhull("FN");
-        int num_point;
-        int UNUSED;
-        int USED;
-        int f_cnt;
-        opt_neibor_facets >> num_point;
-//        for (int i = 0; i < num_point-1; ++i) {
-//            int f_cnt;
-//            opt_neibor_facets>>f_cnt;
-//            if(f_cnt<=1){
-//                // interior point or coplanar or vertices belong to not good facet
-//                if(f_cnt==1){
-//                    opt_neibor_facets>>UNUSED;
-//                }
-//            }else{
-//                for (int j = 0; j < f_cnt; ++j) {
-//                    opt_neibor_facets>>UNUSED;
-//                }
-//            }
-//        }
-        opt_neibor_facets>>f_cnt;
-        vector<int> cone_facets(f_cnt);
-        for (int j = 0; j < f_cnt; ++j) {
-            opt_neibor_facets>>cone_facets[j];
-        }
-        vector<vector<double>> norm_of_facets=get_norm_of_all_facets(q);
-        vector<vector<double>> norm_of_cone;
-        for(int f_id: cone_facets){
-            if(f_id<0){
-                continue;
-            }
-//            assert(f_id<norm_of_facets.size());
-            norm_of_cone.push_back(norm_of_facets[f_id]);
-        }
-//        assert(!norm_of_cone.empty());
-        return norm_of_cone;
-    }
-
-    vector<vector<int>> get_neiFacets_of_points(Qhull &q, const vector<int> &pd_ids){
-        // in the order of index
-        // get neighboring facets for each point
-        stringstream opt_neibor_facets;
-        q.setOutputStream(&opt_neibor_facets);
-        q.outputQhull("FN");
-        int num_point;
-        int UNUSED;
-        int USED;
-        opt_neibor_facets >> num_point;
-        vector<vector<int>> p_nei_fs;
-        for (int i = 0; i < num_point; ++i) {
-            if(i>=pd_ids.size()){
-                break;
-            }
-            int f_cnt;
-            opt_neibor_facets>>f_cnt;
-            vector<int> fs;
-            if(f_cnt<=1){
-                // interior point or coplanar or vertices belong to not good facet
-                if(f_cnt==1){
-                    opt_neibor_facets>>UNUSED;
-                }
-            }else{
-                for (int j = 0; j < f_cnt; ++j) {
-                    opt_neibor_facets>>USED;
-                    if(USED<0){
-                        continue;
-                    }
-                    fs.push_back(USED);
-                }
-            }
-            p_nei_fs.push_back(fs);
-        }
-        return p_nei_fs;
-    }
-};
-
-
 vector<int> build_qhull(const vector<int> &opt_idxes, float **PG, vector<vector<double>> &square_vertexes){
     // \tpara ITERATABLE set<int>, unorder_set<int>, vector<int> and other iteratable STL<INT> CLASS
     int dim=square_vertexes[0].size();
@@ -1409,6 +1338,7 @@ void test_build_qhull(){
         cout<<j<<endl;
     }
 }
+
 void top_region(const vector<int> &opt_idxes, float **PG, vector<vector<double>> &square_vertexes,
                                                             unordered_map<int, vector<vector<double>>> &ret){
     int dim=square_vertexes[0].size();

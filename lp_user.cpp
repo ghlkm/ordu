@@ -1,6 +1,3 @@
-//
-// Created by 12859 on 2020/9/9.
-//
 
 #include "lp_user.h"
 #include <lp_lib.h>

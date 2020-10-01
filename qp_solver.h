@@ -195,28 +195,11 @@ public:
     inline FLOAT update_w_h_solve(const vector<FLOAT> &w, const vector<FLOAT> &h);
 
     inline c_float qp_solve(){
-//        auto begin = chrono::steady_clock::now();
         int flag = osqp_solve(work);
         if(flag!=0){
             return INFINITY;
         }
-//        auto now = chrono::steady_clock::now();
-//        chrono::duration<double> elapsed_seconds= now-begin;
-//        cout<< A_x.size() << "," << elapsed_seconds.count() << "\n";
         c_float ret=2*work->info->obj_val+w_L2;
-//        if(ret<0){
-//            auto s=work->solution;
-//            for (int i = 0; i < dim; ++i) {
-//                cout<<s->x[i]<<",";
-//            }
-//            cout<<endl;
-//            for (int i = 0; i < dim; ++i) {
-//                cout<<s->y[i]<<",";
-//            }
-//            cout<<endl;
-//            cout<<work->info->obj_val<<endl;
-//            assert(true);
-//        }
         return ret>=0?sqrt(ret):0;
     }
 

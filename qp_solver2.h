@@ -1,6 +1,4 @@
-//
-// Created by 12859 on 2020/9/17.
-//
+
 
 #ifndef IPREF_QP_SOLVER2_H
 #define IPREF_QP_SOLVER2_H

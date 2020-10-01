@@ -1,7 +1,4 @@
-//
-// Created by likeming on 2020/8/24.
-//
-//#include "qp_solver.h"
+
 #include  <numeric>
 #include "osqp.h"
 

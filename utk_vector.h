@@ -1,6 +1,3 @@
-//
-// Created by 12859 on 2020/7/16.
-//
 
 #ifndef UTK_BV_UTK_VECTOR_H
 #define UTK_BV_UTK_VECTOR_H
