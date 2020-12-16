@@ -44,17 +44,23 @@ int main(const int argc, const char** argv)
 	}
     const int k = atoi(Param::read(argc, argv, "-k", ""));
 	int dim = atoi(Param::read(argc, argv, "-d", ""));
-	const char* datafile = Param::read(argc, argv, "-f", "");
+	const char* datafile = Param::read(argc, argv, "-f", "");  // option file name
 	const char* indexfile = Param::read(argc, argv, "-i", "");
-	const int X = atoi(Param::read(argc, argv, "-X", ""));
+	const int X = atoi(Param::read(argc, argv, "-X", "")); // TODO change its name to m
 	const char* methodName = Param::read(argc, argv, "-m", "");
     int w_num = atoi(Param::read(argc, argv, "-w", "")); // the number of tested user weights
-    int n=atoi(Param::read(argc, argv, "-n", ""));
-//    write file format:
-//      <k1, w_11, w_12, w_13, ..., w_1d>
-//      <k2, w_21, w_22, w_23, ..., w_2d>
+    int n=atoi(Param::read(argc, argv, "-n", "")); //  TODO discard
+//    product file format:
+//      <id1 w_11 w_12 w_13 ... w_1d>
+//      <id2 w_21 w_22 w_23 ... w_2d>
 //      ...
-//      <kn, w_n1, w_n2, w_n3, ..., w_nd>
+//      <idn w_n1 w_n2 w_n3 ... w_nd>
+
+//    user file format:
+//      <w_11 w_12 w_13 ... w_1d>
+//      <w_21 w_22 w_23 ... w_2d>
+//      ...
+//      <w_n1 w_n2 w_n3 ... w_nd>
     const char *w_file = Param::read(argc, argv, "-W", "");
 
     vector<vector<float>> ws(w_num, vector<float>(dim));
@@ -62,13 +68,12 @@ int main(const int argc, const char** argv)
 	fstream fpdata;
     fpdata.open(w_file, ios::in);
     for (int i = 0; i < ws.size(); ++i) {
-//        fpdata >> ks[i];
         ks[i]=k;
         for (int j = 0; j < ws[i].size(); ++j) {
             fpdata >> ws[i][j];
         }
     }
-    fpdata.close();
+    fpdata.close(); // in case of memory leaking
 
 
     int resultSize = 0;
@@ -131,11 +136,12 @@ int main(const int argc, const char** argv)
 	// aggregate rtree
 	aggregateRecords(*rtree);
 	cout << "[Aggregate Rtree done]" << endl;
+	// init qp solver
     qp=qp_solver(dim);
     g_r_domain_vec=gen_r_domain_vec(dim);
     if (strcmp(methodName, "BB") == 0)
 	{
-		// baseline algorithm
+		// ORD knownX baseline algorithm
 		// (1) compute k-skyband set SK
 		// (2) for each pi, suppose T_pi is the incomparable set (a) p_j is incomparable with p_i in SK, (2) p_j w > p_i w
 		// (3) for each p in T_pi, compute the distance from point w to hyperplane H_{i,j} equation: d = \frac{a1 w1 +  a2 w2 + ... ad_1 wd-1+D}{\sqrt{a1^2+a2^2+ ... + ad-1^2}}
@@ -247,7 +253,7 @@ int main(const int argc, const char** argv)
 	}
 	if (strcmp(methodName, "OA") == 0)
 	{
-		// optimized algorithm
+        // ORD knownX optimized algorithm
 		// (1) revised BBS for w, compute top-k result, store in T directly
 		// (2) for each pi (uncertain status), compute its inflection distance inf_pi, and push it into a max-heap Q (inf_pi as key)
 		// (3) keep fetching until max-heap with size X-k+1, pop the top node out, and initalize p0 = inf_ptop
@@ -288,10 +294,7 @@ int main(const int argc, const char** argv)
         chrono::duration<double> elapsed_seconds= now-begin;
         cout << elapsed_seconds.count()/w_num <<endl;
 	}
-	// inclremental version, without known X
-	// We do not have exact X, we need tell the user the radius rho and its corresponding T
-	// It is similar to optimized algorithm, however, it computes incrementally, from rho = 0 to infinity, the size T is from k to k-skyband.
-    if (strcmp(methodName, "UB") == 0) // unknown X basic
+    if (strcmp(methodName, "UB") == 0) // ORD unknown X basic
     {
         // (1) if get_next_time<=k, from BBS fetch topK
         // (2) for each element in BBS, calculate their inflection radius and store them into heap S (so we can know whose inflection radius is smallest)
@@ -322,7 +325,7 @@ int main(const int argc, const char** argv)
         ad = clock();
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
     }
-    if (strcmp(methodName, "UB_GN") == 0) // unknown X baseline get_next version
+    if (strcmp(methodName, "UB_GN") == 0) // ORD unknown X baseline get_next version
     {
         at = clock();
         auto begin = chrono::steady_clock::now();
@@ -366,7 +369,7 @@ int main(const int argc, const char** argv)
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
     }
-    // inclremental version, without known X
+    // incremental version, without known X
     // We do not have exact X, we need tell the user the radius rho and its corresponding T
     // It is similar to optimized algorithm, however, it computes incrementally, from rho = 0 to infinity, the size T is from k to k-skyband.
     if (strcmp(methodName, "UA") == 0) // unknown X efficient
@@ -440,7 +443,7 @@ int main(const int argc, const char** argv)
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
     }
-    if (strcmp(methodName, "UTK_BB") == 0) // utk baseline
+    if (strcmp(methodName, "UTK_BB") == 0) // ORU baseline
     {
         at = clock();
         auto begin = chrono::steady_clock::now();
@@ -472,7 +475,7 @@ int main(const int argc, const char** argv)
     }
     double avg_rt_cnt=0;
     double avg_rr_cnt=0;
-    if (strcmp(methodName, "UTK_OA") == 0) // utk efficient
+    if (strcmp(methodName, "UTK_OA") == 0) // ORU efficient
     {
         at = clock();
         auto begin = chrono::steady_clock::now();
@@ -492,6 +495,7 @@ int main(const int argc, const char** argv)
             cout <<w.back()<< endl;
             vector<pair<int, double>> utk_option_ret;
             vector<pair<double, region*>> utk_cones_ret;
+            // the code commented below just for anti data
 //            int generated_r_cnt= utk_efficient_anti(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
             int generated_r_cnt= utk_efficient(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
             avg_rt_cnt+=generated_r_cnt;
