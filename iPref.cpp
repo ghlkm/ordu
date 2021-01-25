@@ -18,6 +18,14 @@ inline double max(float b, double a){
     return a>b?a:b;
 }
 
+inline long min(int a, long b){
+    return a<b?a:b;
+}
+
+inline long min(long a, int b){
+    return a<b?a:b;
+}
+
 vector<int> computeTopK(const int dim, float* PG[], vector<int> &skyband, vector<float>& weight, int k)
 {
     multimap<float, int> heap;
@@ -1220,16 +1228,7 @@ pair<int, float> unknown_x_efficient::get_next() {
 
 
 vector<int> build_qhull(const vector<int> &opt_idxes, float **PG, vector<vector<double>> &square_vertexes){
-    // \tpara ITERATABLE set<int>, unorder_set<int>, vector<int> and other iteratable STL<INT> CLASS
     int dim=square_vertexes[0].size();
-//    for (int opt_idx:opt_idxes) {
-//        for (int i = 0; i < dim; ++i) {
-//            square_vertexes[i][i] = max(square_vertexes[i][i],PG[opt_idx][i]+SIDELEN);
-//        }
-//    }
-//    while(square_vertexes.size()>dim+1){
-//        square_vertexes.pop_back();
-//    }
     auto begin = chrono::steady_clock::now();
     square_vertexes.clear();
     square_vertexes.emplace_back(dim);
@@ -1240,7 +1239,7 @@ vector<int> build_qhull(const vector<int> &opt_idxes, float **PG, vector<vector<
                     t+=SIDELEN;
                     t=max(t, 0);// deal with precision problem such as -1e-14, change it into 0
                 }
-                tmp[i]=0;
+                tmp[i]=0;// project to i-th dimension coordinate plane
                 square_vertexes.push_back(tmp);
         }
     }
@@ -1398,12 +1397,6 @@ void top_region(const vector<int> &opt_idxes, float **PG, vector<vector<double>>
     }
 }
 
-unordered_map<int, vector<vector<double>>> top_region(const vector<int> &opt_idxes, float **PG, vector<vector<double>> &square_vertexes){
-    //
-    unordered_map<int, vector<vector<double>>> ret;
-    top_region(opt_idxes, PG, square_vertexes, ret);
-    return ret;
-}
 
 
 void build_qhull(const vector<int> &opt_idxes, float **PG, vector<vector<double>> &square_vertexes, Qhull *q_ptr){
@@ -1421,13 +1414,13 @@ void build_qhull(const vector<int> &opt_idxes, float **PG, vector<vector<double>
     square_vertexes.emplace_back(dim);
     for (int opt_idx:opt_idxes) {
         for (int i = 0; i < dim; ++i) {
-                vector<double> tmp(PG[opt_idx], PG[opt_idx]+dim);
-                for(auto &t:tmp){
-                    t+=SIDELEN;
-                    t=max(t, 0);
-                }
-                tmp[i]=0;
-                square_vertexes.push_back(tmp);
+            vector<double> tmp(PG[opt_idx], PG[opt_idx]+dim);
+            for(auto &t:tmp){
+                t+=SIDELEN;
+                t=max(t, 0);
+            }
+            tmp[i]=0;
+            square_vertexes.push_back(tmp);
         }
     }
     string s = to_string(dim) + " " + to_string(opt_idxes.size() + square_vertexes.size()) + " ";
@@ -1451,6 +1444,40 @@ void build_qhull(const vector<int> &opt_idxes, float **PG, vector<vector<double>
     q_ptr->runQhull(rbox, "QJ");
 }
 
+unordered_map<int, vector<vector<double>>> top_region(const vector<int> &opt_idxes, float **PG, vector<vector<double>> &square_vertexes){
+    //
+    unordered_map<int, vector<vector<double>>> ret;
+    top_region(opt_idxes, PG, square_vertexes, ret);
+    return ret;
+}
+
+unordered_map<int, vector<vector<double>>> top_region2(const vector<int> &opt_idxes, float **PG, vector<vector<double>> &square_vertexes){
+    //
+    Qhull q;
+    build_qhull(opt_idxes, PG, square_vertexes, &q);
+    qhull_user qu;
+    vector<int> ch=qu.get_CH_pointID(q, opt_idxes);
+    unordered_map<int, vector<int>> reti;
+    int dim=square_vertexes[0].size();
+    qu.get_neiVT_of_VT(q, opt_idxes, reti);
+    unordered_map<int, vector<vector<double>>> ret;
+    for(int i:ch){
+        auto iter=reti.find(i);
+        if(iter!=reti.end()){
+            ret[i]=vector<vector<double>>();
+            for (int nei:iter->second) {
+                vector<double> tmp(PG[nei], PG[nei]+dim);
+                for (int j = 0; j <dim ; ++j) {
+                    tmp[j]-=PG[i][j];
+                }
+                ret[i].push_back(tmp);
+            }
+        }
+    }
+    return ret;
+}
+
+
 inline void update_square_vertexes(vector<vector<double>> &square_vertexes, float *new_ele, int dim){
     for (int i=0;i<dim;++i){
         square_vertexes[i][i]=max(square_vertexes[i][i], new_ele[i]);
@@ -1460,47 +1487,97 @@ inline void update_square_vertexes(vector<vector<double>> &square_vertexes, floa
 class ch{
     unordered_set<int> rest;
     unordered_map<int, int> pdtid_layer;
-    unordered_map<int, vector<int>> A_p;
+    unordered_map<int, int> dominated_cnt;// only use for build k-convex-hull
+
     vector<vector<int>> chs;
+
     vector<int> EMPTY;
     float** pointSet;
     int d;
     public:
     vector<int> rskyband;
+    unordered_map<int, vector<int>> A_p;
+    unordered_map<int, unordered_set<int>> do_map;
+    unordered_map<int, unordered_set<int>> dominated_map;
+
     ch(vector<int> &idxes, float** &point_set, int dim){
         this->rskyband=idxes;
         this->rest=unordered_set<int>(idxes.begin(), idxes.end());
         this->pointSet=point_set;
         this->d=dim;
+        build_do_re(idxes, point_set, dim);
     }
+
+    void fast_non_dominate_sort(
+            const unordered_map<int, unordered_set<int>> &do_map,
+            unordered_map<int, int>& dominated_cnt,
+            const vector<int> &last_layer){
+        for (int opt:last_layer) {
+            auto iter=do_map.find(opt);
+            if(iter!=do_map.end()){
+                for(int dominated:iter->second){
+                    auto cnt_iter=dominated_cnt.find(dominated);
+                    if(cnt_iter!=dominated_cnt.end()){
+                        cnt_iter->second-=1;
+                    }
+                }
+            }
+        }
+    }
+
+    void build_do_re(vector<int> &idxes, float** &point_set, int dim){
+        for (int i:idxes){
+            dominated_cnt[i]=0;
+            do_map[i]=unordered_set<int>();
+            dominated_map[i]=unordered_set<int>();
+        }
+        for (int ii = 0;ii<idxes.size();++ii) {
+            int i=idxes[ii];
+            for (int ji = ii+1; ji <idxes.size() ; ++ji) {
+                int j=idxes[ji];
+                if(v1_dominate_v2(point_set[i], point_set[j], dim)){
+                    do_map[i].insert(j);
+                    dominated_map[j].insert(i);
+                    ++dominated_cnt[j];
+                }else if(v1_dominate_v2(point_set[j], point_set[i], dim)){
+                    do_map[j].insert(i);
+                    dominated_map[i].insert(j);
+                    ++dominated_cnt[i];
+//                }else{// non-dominate
+                }
+            }
+        }
+    }
+
     const vector<int>& get_next_layer(){
         vector<vector<double>> square_vertexes(d+1, vector<double>(d));
-        vector<int> rest_v(rest.begin(), rest.end());
+        if(!chs.empty()){
+            fast_non_dominate_sort(do_map, dominated_cnt, chs[chs.size()-1]);
+        }
+        vector<int> rest_v;
+        for(int i:rest){
+            auto iter=dominated_cnt.find(i);
+            if(iter!=dominated_cnt.end() && iter->second<=0){
+                rest_v.push_back(i);
+            }
+        }
+        cout<<"no. of points to build convex hull: "<<rest_v.size()<<endl;
         Qhull q;
         build_qhull(rest_v, pointSet, square_vertexes, &q);
         qhull_user qu;
         vector<int> ch=qu.get_CH_pointID(q, rest_v);
 
-//        Qhull q_test;
-//        build_qhull(ch, pointSet, square_vertexes, &q_test);
-//        vector<int> ch_test=qu.get_CH_pointID(q_test, ch);
-//        assert(ch_test.size()==ch.size());
-
         chs.push_back(ch);
         for (int idx:ch) {
-//            assert(idx>=0 && idx<=objCnt);
             pdtid_layer[idx] =  chs.size();
             rest.erase(idx);
         }
         qu.get_neiVT_of_VT(q, rest_v, A_p);
-//        for (int idx:ch) {
-////            assert(A_p.find(idx)!=A_p.end());
-//        }
+
         return chs.back();
     }
 
     int get_option_layer(int option){
-//        assert(option>=0 && option <=objCnt);
         auto iter=pdtid_layer.find(option);
         if(iter!=pdtid_layer.end()){
             return iter->second;
@@ -1524,7 +1601,7 @@ class ch{
         while(chs.size()<which_layer && !rest.empty()){
             this->get_next_layer();
         }
-        if(chs.size()<which_layer){
+        if(chs.size()<which_layer || which_layer<=0){
             return EMPTY;
         }
         return this->chs[which_layer-1];
@@ -1653,23 +1730,9 @@ int topRegions_efficient(vector<vector<double>> &parent_region, ch &ch_obj,
                 }
                 top1_calculated.insert(adj_opt);
                 auto iter = top1_region.find(adj_opt);
-//                assert(iter!=top1_region.end());
                 if(iter==top1_region.end()){
                     continue; // precision problem occurs!
                 }
-//                vector<double> t1(PG[popped.second->topk.front()], PG[popped.second->topk.front()]+dim);
-//                vector<double> ta(PG[adj_opt], PG[adj_opt]+dim);
-//                cout<<"finding top-region of:"<<t1<<"\t"<<ta<<"\n";
-//                cout<<"parent region:";
-//                for(auto &i:parent_region){
-//                    cout<<"\n#"<<i;
-//                }
-//                cout<<"\n";
-//                cout<<"top1 region:";
-//                for(auto &i:iter->second){
-//                    cout<<"\n#"<<i;
-//                }
-//                cout<<"\n";
                 double dist=dist_region_w(parent_region,iter->second, w);
                 if(dist!=INFINITY){
                     vector<int> tmp;
@@ -1747,20 +1810,40 @@ int topRegions_efficient(vector<vector<double>> &parent_region, ch &ch_obj,
             for(int mp1_opt: ch_obj.get_layer(m+1)){
                 ch_upd_s.insert(mp1_opt);
             }
-            for (int top: popped.second->topk) {
-                ch_upd_s.erase(top);
-            }
+            //TODO
+//            for (int top: popped.second->topk) {
+//                ch_upd_s.erase(top);
+//            }
+//            unordered_map<int, int> dominated_cnt;
+//            for(int i:ch_upd_s){
+//                dominated_cnt[i]=ch_obj.dominated_map[i].size();
+//            }
+//            for(int opt:ch_upd_s){
+//                auto iter=ch_obj.dominated_map.find(opt);
+//                if(iter!=ch_obj.dominated_map.end()){
+//                    for(int i:popped.second->topk){
+//                        if(iter->second.find(i)!=iter->second.end()){
+//                            --dominated_cnt[opt];
+//                        }
+//                    }
+//                }
+//            }
+//            vector<int> ch_upd;
+//            for (int i:ch_upd_s) {
+//                auto iter=dominated_cnt.find(i);
+//                if(iter!=dominated_cnt.end()&&iter->second<=0){
+//                    ch_upd.push_back(i);
+//                }
+//            }
             vector<int> ch_upd(ch_upd_s.begin(), ch_upd_s.end());// from set to vector
+            // TODO
             const int square_vertex_cnt=dim+1;
 //            auto qhb=chrono::steady_clock::now();
-            vector<vector<double>> square_vertexes(square_vertex_cnt, vector<double>(dim));
+            vector<vector<double>> square_vertexes(1, vector<double>(dim));
             // 时间主要开销， 主要性能瓶颈, 求凸包以及每个凸包点的top region
-            unordered_map<int, vector<vector<double>>> tops_region=top_region(ch_upd, PG, square_vertexes);
+            unordered_map<int, vector<vector<double>>> tops_region=top_region2(ch_upd, PG, square_vertexes);
             // 时间主要开销， 主要性能瓶颈, 求凸包以及每个凸包点的top region
 
-//            auto qhe=chrono::steady_clock::now();
-//            chrono::duration<double> elapsed_seconds= qhe-qhb;
-//            cout<< elapsed_seconds.count() << "\n";
             for (int ch_upd_opt: ch_upd_s) {
                 auto iter = tops_region.find(ch_upd_opt);
                 if(iter!=tops_region.end()){
@@ -1922,21 +2005,21 @@ void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X,
     }
     cout <<"\n";
 
-    for (vector<c_float> &e:g_r_domain_vec) {
-        double atc_rho=rho_star_d;
-        for (int i = 0; i < e.size(); ++i) {
-            if(e[i]<0){
-                atc_rho=min(atc_rho, -w[i]/e[i]); // in case of w[i] + \rho * e[i] <0 or >1
-            }
-        }
-        tmp.push_back(atc_rho*e+w);    }
-    for (int i = 0; i < tmp.size(); ++i) {
-        for (int j = 0; j < dim; ++j){
-            cout << tmp[i][j] << ", ";
-        }
-        cout<<"\n";
-    }
-    cout <<"\n";
+//    for (vector<c_float> &e:g_r_domain_vec) {
+//        double atc_rho=rho_star_d*rho_star_d*dim;
+////        for (int i = 0; i < e.size(); ++i) {
+////            if(e[i]<0){
+////                atc_rho=min(atc_rho, -w[i]/e[i]); // in case of w[i] + \rho * e[i] <0 or >1
+////            }
+////        }
+//        tmp.push_back(atc_rho*e+w);    }
+//    for (int i = 0; i < tmp.size(); ++i) {
+//        for (int j = 0; j < dim; ++j){
+//            cout << tmp[i][j] << ", ";
+//        }
+//        cout<<"\n";
+//    }
+//    cout <<"\n";
 
 
 //    class region{
@@ -1949,7 +2032,8 @@ void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X,
     elapsed_seconds= now-begin;
     cout<< elapsed_seconds.count();
     cout<< " begin generate domain" << endl;
-    vector<vector<double>> begin_region=points_to_halfspace(tmp);
+//    vector<vector<double>> begin_region=points_to_halfspace(tmp);
+    vector<vector<double>> begin_region;
     now = chrono::steady_clock::now();
     elapsed_seconds= now-begin;
     cout<< elapsed_seconds.count();
@@ -2022,6 +2106,7 @@ int utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int
     bool top1f= false;
     while(CH_1_X_opt.size() < X){
         next=get_next_obj.get_next();
+        cout<<get_next_obj.interval.size()<<" "<<next.second<<endl;
         CH_1_X_opt.push_back(next.first);
         if(!top1f){
             top1=CH_1_X_opt.back();
@@ -2039,7 +2124,7 @@ int utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int
     // point 2: (0, 0, max(points[:, 2]))
     // point 3: \vec{0}
     const int square_vertex_cnt=dim+1;
-    vector<vector<double>> square_vertexes(square_vertex_cnt, vector<double>(dim));
+    vector<vector<double>> square_vertexes(1, vector<double>(dim));
 
     // qhull class in lib qhull
     // init qhull with top X options
@@ -2052,16 +2137,27 @@ int utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int
     // rho_star is computed when CH_1.size()=X
     int cnt=0;
     // 2. begin: continue step 1 to fill CH1 until CH1 contains m options
-    while(CH_1_X_opt.size() < X){ // while(CH_1.size<X)
-        while(CH_1_X_opt.size() < X){
-            next=get_next_obj.get_next();
-            if(next.second==INFINITY){
-                break;
+
+    int minc=X, maxc=2*X, midc=X;
+    while(CH_1_X_opt.size() < X){ // find the maxc
+        midc=maxc; // make sure correct rho_star
+        if(get_next_obj.interval.size()<maxc){
+            while(get_next_obj.interval.size()<maxc){
+                next=get_next_obj.get_next();
+                cout<<get_next_obj.interval.size()<<" "<<next.second<<endl;
+                if(next.second==INFINITY){
+                    break;
+                }
+                CH_1_X_opt.push_back(next.first);
+                cnt++;
             }
-            update_square_vertexes(square_vertexes, PointSet[next.first], dim);
-            CH_1_X_opt.push_back(next.first);
-            cnt++;
+        }else{
+            CH_1_X_opt.clear();
+            for (int j = 0; j <maxc ; ++j) {
+                CH_1_X_opt.push_back(get_next_obj.interval[j].first);
+            }
         }
+
         auto lbegin = chrono::steady_clock::now();
 
         CH_1_X_opt=build_qhull(CH_1_X_opt, PointSet, square_vertexes);
@@ -2072,10 +2168,55 @@ int utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int
         if(next.second==INFINITY){
             break;
         }
+        if(CH_1_X_opt.size()>=X){
+            break;
+        }else{
+            minc=maxc;
+            maxc*=2;
+        }
     }
+    while(CH_1_X_opt.size() != X){ // while(CH_1.size<X)
+        midc=(maxc+minc)/2;
+        if(get_next_obj.interval.size()<=midc){
+            while(get_next_obj.interval.size()<midc){
+                next=get_next_obj.get_next();
+                cout<<get_next_obj.interval.size()<<" "<<next.second<<endl;
+                if(next.second==INFINITY){
+                    break;
+                }
+                update_square_vertexes(square_vertexes, PointSet[next.first], dim);
+                CH_1_X_opt.push_back(next.first);
+                cnt++;
+            }
+        }else{
+            CH_1_X_opt.clear();
+            for (int j = 0; j <midc ; ++j) {
+                CH_1_X_opt.push_back(get_next_obj.interval[j].first);
+            }
+        }
+
+        auto lbegin = chrono::steady_clock::now();
+
+        CH_1_X_opt=build_qhull(CH_1_X_opt, PointSet, square_vertexes);
+        auto lnow = chrono::steady_clock::now();
+        chrono::duration<double> lelapsed_seconds= lnow-lbegin;
+        cout << lelapsed_seconds.count()<<endl;
+        cout<< cnt<<" rebuild qhull finish "<< CH_1_X_opt.size() <<endl;
+        if(next.second==INFINITY){
+            break;
+        }
+        if(CH_1_X_opt.size()==X){
+            break;
+        }else if(CH_1_X_opt.size()>X){
+            maxc=midc-1;
+        }else{
+            minc=midc+1;
+        }
+    }
+
     // 2. end: continue step 1 to fill CH1 until CH1 contains m options
     // 3. getting estimate \rho^* from step 2
-    float rho_star=next.second;
+    float rho_star=get_next_obj.interval[min(midc-1, get_next_obj.interval.size()-1)].second;
 
     cout << "init rho_star: "<<rho_star<<endl;
     now = chrono::steady_clock::now();
@@ -2100,6 +2241,8 @@ int utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int
 
     for (vector<c_float> &e:g_r_domain_vec) {
         double atc_rho=rho_star_d;
+//        double atc_rho=rho_star_d*sqrt(dim);
+
         for (int i = 0; i < e.size(); ++i) {
             if(e[i]<0){
                 atc_rho=min(atc_rho, -w[i]/e[i]); // in case of w[i] + \rho * e[i] <0 or >1
@@ -2123,7 +2266,22 @@ int utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int
     // init convex hull object, this object can conveniently return CH_i given input i
     ch ch_obj(rskyband_CS, PointSet, dim);
     const vector<int>& top1_idxes=ch_obj.get_layer(1);// get CH1
-    unordered_map<int, vector<vector<double>>> top1_region=top_region(top1_idxes, PointSet, square_vertexes2);
+    cout<<"finish finding CH1"<<endl;
+    unordered_map<int, vector<vector<double>>> top1_region;
+    for(int i:top1_idxes){
+        auto iter=ch_obj.A_p.find(i);
+        if(iter!=ch_obj.A_p.end()){
+            top1_region[i]=vector<vector<double>>();
+            for (int nei:iter->second) {
+                vector<double> tmp(PointSet[nei], PointSet[nei]+dim);
+                for (int j = 0; j <dim ; ++j) {
+                    tmp[j]-=PointSet[i][j];
+                }
+                top1_region[i].push_back(tmp);
+            }
+        }
+    }
+//    unordered_map<int, vector<vector<double>>> top1_region=top_region(top1_idxes, PointSet, square_vertexes2);
     now = chrono::steady_clock::now();
     elapsed_seconds= now-begin;
     cout<< elapsed_seconds.count() << " finish find top1 region" << endl;
@@ -2216,6 +2374,7 @@ int utk_efficient_anti(float **PointSet, int dim, vector<float> &w, Rtree* rtree
     multimap<double, region*> id_radius; // <radius, region>
     vector<vector<double>> square_vertexes2(dim+1, vector<double>(dim));
     cout<< "CH_1 size:" << top1_idxes.size()<<endl;
+
     unordered_map<int, vector<vector<double>>> top1_region=top_region(top1_idxes, PointSet, square_vertexes2);
     now = chrono::steady_clock::now();
     elapsed_seconds= now-begin;
@@ -2239,4 +2398,60 @@ int utk_efficient_anti(float **PointSet, int dim, vector<float> &w, Rtree* rtree
     cout<< elapsed_seconds.count();
     cout<< " finish recursively get top regions\n";
     return ret;
+}
+
+
+double QP_DIS(multimap<float, pair<vector<float>, int>, less<float>> &heap,
+              vector<float> &point){
+    return 0;
+}
+
+double QP_DIS(multimap<float, pair<vector<float>, int>, less<float>> &heap,
+              vector<float> &point,
+              RtreeNode *node, int self){
+    // for i in node but not is self
+    return 0;
+}
+
+float BBS_QP(const int dimen, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[],
+                 vector<pair<long int, float>> &interval){
+    RtreeNode* node;
+    multimap<float, pair<vector<float>, int>, less<float>> heap;
+    multimap<float, pair<vector<float>, int>, less<float>> candidateRet;
+    float tmpDis; // distance calculate by QP
+    float tmpRadius; // the inflection radius of point Pi.
+    vector<float> ones=vector<float>(dimen);
+    heap.emplace(0, pair<vector<float>, int>(ones, a_rtree.m_memory.m_rootPageID));
+
+    while (!heap.empty() && interval.size()<X){
+        tmpDis = heap.begin()->first;
+        pair<vector<float>, int> point_id = heap.begin()->second;
+        heap.erase(heap.begin());
+        if(point_id.second>MAXPAGEID){ // option processing
+            double dis=QP_DIS(heap, point_id.first);
+            interval.emplace_back(point_id.second-MAXPAGEID, dis);
+        }else{
+            node = ramTree[point_id.second];
+            if(node->isLeaf()){
+                for (int i = 0; i < node->m_usedspace; i++){
+                    const Point p=node->m_entry[i]->m_hc.getCenter();
+                    vector<float> tv(p.m_coor, p.m_coor+dimen);
+//                    tmpDis=QP_DIS(heap, )
+                    //要把除自己外的这些展开的点加入算QP的点里
+                }
+
+            }
+        }
+    }
+
+}
+
+int utk_efficient2(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
+                  vector<pair<int, double>> &utk_option_ret,
+                  vector<pair<double, region*>> &utk_cones_ret) {
+
+    auto begin = chrono::steady_clock::now();
+    auto now = chrono::steady_clock::now();
+    chrono::duration<double> elapsed_seconds= now-begin;
+
 }

@@ -71,10 +71,14 @@ template<typename V, typename VV, typename FLOAT>
 bool v2_r_dominate_v1(const V &v1, const V &v2, const V &w, const VV &r_domain_vec, const FLOAT &rho);
 
 
+template<typename ITER>
+double sum(const ITER &begin, const ITER &end);
 
 
 template<typename VF, typename VI, typename VV, typename FLOAT>
 bool isR_skyband(const VV &PG, const VI&vs, const VF &opt, const VF &w, const FLOAT &rho, int k);
+
+
 
 
 #include "utk_math_lib_impl.h"

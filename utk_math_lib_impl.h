@@ -147,6 +147,15 @@ vector<int> k_skyband(VV &P, const int &k) {
     return ret;
 }
 
+template<typename ITER>
+double sum(const ITER &begin, const ITER &end){
+    double ret=0;
+    for(auto i=begin;i!=end;++i){
+        ret+=*i;
+    }
+    return ret;
+}
+
 template<typename V>
 double domin_r_ij(const V &w, const V &h_ij) {
     /*
@@ -322,6 +331,8 @@ bool v2_r_dominate_v1(const V &v1, const V &v2, const V &w, const VV &r_domain_v
     }
     return true;
 }
+
+
 
 #endif //UTK_BV_UTK_MATH_LIB_IMPL_H
 

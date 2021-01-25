@@ -511,7 +511,7 @@ int main(const int argc, const char** argv)
             for (float radius:avg_radius) {
                 cout<<radius/(wi+1)<<endl;
             }
-            double rho = utk_option_ret.back().second;
+             double rho = utk_option_ret.back().second;
             for (pair<double, region*> &tmp: utk_cones_ret) {
                 delete(tmp.second);
             }
@@ -624,25 +624,26 @@ int main(const int argc, const char** argv)
             int mins=min(skyline_topm.size(), ord_topm.size());
             cout<<"M1\n";
             for (int m:mv) {
-                cout<< dist(skyline_topm.begin(), skyline_topm.begin()+min(m, mins), ord_topm.begin(), ord_topm.begin()+min(m, mins))<<"\n";
+                cout << jaccard(skyline_topm.begin(), skyline_topm.begin() + min(m, mins), ord_topm.begin(),
+                                ord_topm.begin() + min(m, mins)) << "\n";
             }
             cout<<endl;
             // M2
             cout<<"M2\n";
             for (int m:mv) {
-                cout<< dist(skyline_topm.begin(), skyline_topm.begin()+m, oru_topm.begin(), oru_topm.begin()+m)<<"\n";
+                cout << jaccard(skyline_topm.begin(), skyline_topm.begin() + m, oru_topm.begin(), oru_topm.begin() + m) << "\n";
             }
             cout<<endl;
             // M3
             cout<<"M3\n";
             for (int m:mv) {
-                cout<< dist(direct_topm.begin(), direct_topm.begin()+m, ord_topm.begin(), ord_topm.begin()+m)<<"\n";
+                cout << jaccard(direct_topm.begin(), direct_topm.begin() + m, ord_topm.begin(), ord_topm.begin() + m) << "\n";
             }
             cout<<endl;
             // M4
             cout<<"M4\n";
             for (int m:mv) {
-                cout<< dist(direct_topm.begin(), direct_topm.begin()+m, oru_topm.begin(), oru_topm.begin()+m)<<"\n";
+                cout << jaccard(direct_topm.begin(), direct_topm.begin() + m, oru_topm.begin(), oru_topm.begin() + m) << "\n";
             }
             cout<<endl;
             cout<<"topm=[\n"<<direct_topm<<"\n]\n";
@@ -660,6 +661,117 @@ int main(const int argc, const char** argv)
         cout << "Total return regions: " << avg_rr_cnt/w_num<<endl;
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
+    }
+
+    if (strcmp(methodName, "CS2") == 0) // case study 2
+    {
+        at = clock();
+        auto begin = chrono::steady_clock::now();
+        vector<double> jas; // contains jaccard results
+        vector<double> pres; // contains precision results
+        vector<double> recs; // contains recall results
+        for (int wi = 0; wi < w_num; wi++)
+        {
+            int k=ks[wi];
+            // weight vector for testing, we should remove the redundant one
+            vector<float> w(ws[wi].begin(), ws[wi].end());
+            cout << "Testing w: ";
+            for (int di = 0; di < dim-1; di++)
+            {
+                cout << w[di] << ", ";
+            }
+            cout <<w.back()<< endl;
+
+
+            // fetch ORD top-m
+            vector<pair<long int, float>> interval;
+            float rho = computeRho(dim, k, X, w, *rtree, PointSet, interval);
+            cout<<"rho:"<<rho<<endl;
+            vector<int> ord_topm;
+            for(pair<long int, float>&pi: interval){
+                ord_topm.push_back(pi.first);
+            }
+            set<int> ord_topm_s(ord_topm.begin(), ord_topm.end());
+
+            // fetch ORU top-m
+            vector<pair<int, double>> utk_option_ret;
+            vector<pair<double, region*>> utk_cones_ret;
+//            int generated_r_cnt= utk_efficient_anti(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
+            int generated_r_cnt= utk_efficient(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
+            vector<int> oru_topm;
+            for(pair<int, double>&pi: utk_option_ret){
+                oru_topm.push_back(pi.first);
+            }
+            set<int> oru_topm_s(oru_topm.begin(), oru_topm.end());
+            double rho2 = utk_option_ret.back().second;
+
+            cout << "ORD top m size: " << ord_topm_s.size()<<endl;
+            cout<< "ORU top m size: "<<oru_topm_s.size()<<endl;
+
+            double ja=jaccard(oru_topm.begin(), oru_topm.end(), ord_topm.begin(),
+                              ord_topm.end());
+            jas.push_back(ja);
+            cout<<"jaccard:";
+            cout << ja << "\n";
+            cout<<endl;
+
+            double pre=precision(oru_topm.begin(), oru_topm.end(), ord_topm.begin(),
+                                 ord_topm.end());
+            pres.push_back(pre);
+            cout<<"precision:";
+            cout << pre << "\n";
+            cout<<endl;
+
+            double re=recall(oru_topm.begin(), oru_topm.end(), ord_topm.begin(),
+                             ord_topm.end());
+            recs.push_back(re);
+            cout<<"recall:";
+            cout << re << "\n";
+            cout<<endl;
+
+            cout<<endl;
+            cout<<"ord=[\n"<<ord_topm<<"\n]\n";
+            cout<<"oru=[\n"<<oru_topm<<"\n]\n";
+            for(int i:oru_topm){
+                for (int j = 0; j < dim; ++j) {
+                    cout<<PointSet[i][j]+SIDELEN<<" ";
+                }
+                cout<<endl;
+            }
+            for (pair<double, region*> &tmp: utk_cones_ret) {
+                delete(tmp.second);
+            }
+        }
+//        ofstream myfile;
+//        myfile.open ("cs2.txt", ios::out | ios::app | ios::binary);
+//        for (int l = 0; l < argc; ++l) {
+//            myfile<< argv[l]<<" ";
+//        }
+//        myfile<<endl;
+//        myfile<<"avg jaccard: ";
+//        myfile<< sum(jas.begin(), jas.end())/jas.size() <<"\n";
+//        myfile<<"avg precision: ";
+//        myfile<< sum(pres.begin(), pres.end())/pres.size() <<"\n";
+//        myfile<<"avg recall: ";
+//        myfile<< sum(recs.begin(), recs.end())/recs.size() <<"\n";
+//
+//        for(auto ja:jas){
+//            myfile<<ja<<" ";
+//        }
+//        myfile<<"\n";
+//
+//        for(auto pre:pres){
+//            myfile<<pre<<" ";
+//        }
+//        myfile<<"\n";
+//
+//        for(auto rec:recs){
+//            myfile<<rec<<" ";
+//        }
+//        myfile<<"\n";
+//
+//        myfile<<endl;
+//        myfile.close();
     }
     ofstream myfile;
     myfile.open ("result_oru.txt", ios::out | ios::app | ios::binary);

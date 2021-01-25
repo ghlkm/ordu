@@ -48,19 +48,15 @@ public:
         // return pdt_id
         auto pt_neiF = get_neiFacets_of_points(q, pd_ids);  // require index
         auto f_pt = get_points_of_facets(q, pd_ids); // require pdt_id
-//        assert(pt_neiF.size()>=pd_ids.size());
         for (int i = 0; i < pd_ids.size(); ++i) {
             if(!pt_neiF[i].empty()){
                 unordered_set<int> nei_f_s;
                 for (int j = 0; j < pt_neiF[i].size(); ++j) {
                     int f=pt_neiF[i][j];
-//                    assert(f<=f_pt.size() && f>=0);
                     for (int k = 0; k < f_pt[f].size(); ++k) {
-//                        assert(f_pt[f][k]>=0  && f_pt[f][k]<=objCnt);
                         nei_f_s.insert(f_pt[f][k]);
                     }
                 }
-//                assert(pd_ids[i]>=0 && pd_ids[i]<=objCnt);
                 nei_f_s.erase(pd_ids[i]);
                 ret[pd_ids[i]]=vector<int>(nei_f_s.begin(), nei_f_s.end());
             }

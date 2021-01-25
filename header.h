@@ -60,7 +60,7 @@ using namespace std;
 #define MAXLOOP 10000
 #define ZEROEXTENT 1e-15
 
-#define SIDELEN 0.001  // make sure this SIDELEN is correct for each running of different data
+#define SIDELEN 0.0001  // make sure this SIDELEN is correct for each running of different data
 #define CELLING 1.000
 
 #endif
