@@ -481,7 +481,7 @@ int main(const int argc, const char** argv)
         auto begin = chrono::steady_clock::now();
         vector<double> avg_time(X);
         vector<float> avg_radius(X, 0.0);
-        for (int wi = 0; wi < w_num; wi++)
+        for (int wi = 15; wi < w_num; wi++)
         {
             auto w_begin = chrono::steady_clock::now();
             int k=ks[wi];
@@ -527,6 +527,7 @@ int main(const int argc, const char** argv)
         }
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
+        cout<<elapsed_seconds.count();
     }
     if (strcmp(methodName, "CS") == 0) // case study
     {
@@ -534,9 +535,6 @@ int main(const int argc, const char** argv)
         auto begin = chrono::steady_clock::now();
         for (int wi = 0; wi < w_num; wi++)
         {
-            if(wi!=w_num-1){ // choose a weight rather than running all
-                continue;
-            }
             auto w_begin = chrono::steady_clock::now();
             int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
@@ -741,7 +739,11 @@ int main(const int argc, const char** argv)
             for (pair<double, region*> &tmp: utk_cones_ret) {
                 delete(tmp.second);
             }
+
         }
+        auto now = chrono::steady_clock::now();
+        chrono::duration<double> elapsed_seconds= now-begin;
+        cout<<elapsed_seconds.count()<<endl;
 //        ofstream myfile;
 //        myfile.open ("cs2.txt", ios::out | ios::app | ios::binary);
 //        for (int l = 0; l < argc; ++l) {
@@ -773,6 +775,50 @@ int main(const int argc, const char** argv)
 //        myfile<<endl;
 //        myfile.close();
     }
+
+    if (strcmp(methodName, "CS3") == 0) // case study3, see the change of rho_star with change of d
+    {
+        at = clock();
+        auto begin = chrono::steady_clock::now();
+        vector<double> rss;
+        for (int wi = 0; wi < w_num; wi++)
+        {
+            auto w_begin = chrono::steady_clock::now();
+            int k=ks[wi];
+            // weight vector for testing, we should remove the redundant one
+            vector<float> w(ws[wi].begin(), ws[wi].end());
+            cout << "Testing w: ";
+            for (int di = 0; di < dim-1; di++)
+            {
+                cout << w[di] << ", ";
+            }
+            cout <<w.back()<< endl;
+//            void kskyband(const int dimen, Rtree& a_rtree, vector<long int>& kskyband, float* PG[], const int k)
+            //get 1-skyband, fetch top m from them
+            vector<pair<int, double>> utk_option_ret;
+            vector<pair<double, region*>> utk_cones_ret;
+            double rho_star;
+            int generated_r_cnt= utk_efficient_cs3(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret, rho_star);
+            rss.push_back(rho_star);
+            for (pair<double, region*> &tmp: utk_cones_ret) {
+                delete(tmp.second);
+            }
+        }
+        cout<<"output rho_star begin"<<endl;
+        for(double rho:rss){
+            cout<<rho<<"\n";
+        }
+        cout<<"output rho_star end"<<endl;
+
+        ad = clock();
+        cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+        cout << "Total generated regions: " << avg_rt_cnt/w_num<<endl;
+        cout << "Total return regions: " << avg_rr_cnt/w_num<<endl;
+        auto now = chrono::steady_clock::now();
+        chrono::duration<double> elapsed_seconds= now-begin;
+    }
+
+
     ofstream myfile;
     myfile.open ("result_oru.txt", ios::out | ios::app | ios::binary);
     myfile <<fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num)<<": ";

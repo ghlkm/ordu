@@ -161,4 +161,8 @@ vector<vector<double>> points_to_halfspace(vector<vector<double>> &points);
 int utk_efficient_anti(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
                        vector<pair<int, double>> &utk_option_ret,
                        vector<pair<double, region*>> &utk_cones_ret);
+
+int utk_efficient_cs3(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
+                      vector<pair<int, double>> &utk_option_ret,
+                      vector<pair<double, region*>> &utk_cones_ret, double &rho_star);
 #endif

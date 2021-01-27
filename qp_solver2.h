@@ -9,5 +9,6 @@ vector<float> find_point_in_region(const vector<float>& w, const vector<vector<d
 vector<double> find_point_in_region(const vector<float>& w, const vector<vector<double>>& H1, const vector<vector<double>>& H2);
 double qp_solver2(const vector<float>& w, const vector<vector<double>>& H);
 double qp_solver2(const vector<float>& w, const vector<vector<double>>& H1, const vector<vector<double>>& H2);
+double qp_solver2(const vector<float>& w, const vector<vector<double>>& H1, int opt, vector<int>& cmp, float **PG);
 
 #endif //IPREF_QP_SOLVER2_H
