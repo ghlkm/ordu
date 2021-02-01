@@ -1475,6 +1475,7 @@ class ch{
     float** pointSet;
     int d;
     public:
+    unordered_set<int> all;
     vector<int> rskyband;
     unordered_map<int, vector<int>> A_p;
     unordered_map<int, unordered_set<int>> do_map;
@@ -1483,6 +1484,7 @@ class ch{
     ch(vector<int> &idxes, float** &point_set, int dim){
         this->rskyband=idxes;
         this->rest=unordered_set<int>(idxes.begin(), idxes.end());
+        this->all=unordered_set<int>(idxes.begin(), idxes.end());
         this->pointSet=point_set;
         this->d=dim;
         build_do_re(idxes, point_set, dim);
@@ -1764,7 +1766,6 @@ int topRegions_efficient(vector<vector<double>> &parent_region, ch &ch_obj,
             for (int top: popped.second->topk) {
                 ch_upd_s.erase(top);
             }
-            //TODO
             unordered_map<int, int> dominated_cnt;
             for(int i:ch_upd_s){
                 dominated_cnt[i]=ch_obj.dominated_map[i].size();
@@ -1831,24 +1832,12 @@ int topRegions_efficient(vector<vector<double>> &parent_region, ch &ch_obj,
 }
 
 
-class topi_region{
-    int opt_i;
-    topi_region *parent;
-    topi_region *child;
-    vector<int> constraint;
-    topi_region(){
-        parent= nullptr;
-        child=nullptr;
-
-    }
-};
-
 int topRegions_efficient2(vector<vector<double>> &parent_region, ch &ch_obj,
-                         multimap<double, region*> &id_radius, float **PG, int dim, int X,
-                         const int k, vector<float> &w, unordered_set<int> &top1_calculated,
-                         vector<pair<int, double>> &utk_option_ret,
-                         vector<pair<double, region*>> &utk_cones_ret,
-                         unordered_map<int, vector<vector<double>>> &top1_region){
+                          multimap<double, region*> &id_radius, float **PG, int dim, int X,
+                          const int k, vector<float> &w, unordered_set<int> &top1_calculated,
+                          vector<pair<int, double>> &utk_option_ret,
+                          vector<pair<double, region*>> &utk_cones_ret,
+                          unordered_map<int, vector<vector<double>>> &top1_region){
     // init "top1_calculated" with top1 respecting to w
     auto begin=chrono::steady_clock::now();
     unordered_set<int> options;
@@ -1869,8 +1858,6 @@ int topRegions_efficient2(vector<vector<double>> &parent_region, ch &ch_obj,
         if(popped.second->topk.size()==1){
             // if it is top1, push its adjacent vertex
             const vector<int> &top1_adj=ch_obj.get_neighbor_vertex(popped.second->topk.front());
-            unordered_set<double> dss;
-            vector<double> dsv;
             for (int adj_opt:top1_adj) {
                 if(top1_calculated.find(adj_opt)!=top1_calculated.end()){
                     continue;
@@ -1904,7 +1891,7 @@ int topRegions_efficient2(vector<vector<double>> &parent_region, ch &ch_obj,
                     if(true){
                         vector<double> tmp(PG[opt], PG[opt]+dim);
                         cout<<options.size()<<": "<<popped.second->cone.size()<<"," << popped.first << ", "<<utk_cones_ret.size()<<
-                            ", "<<rcnt <<"," << ch_obj.get_neighbor_vertex(popped.second->topk.front()).size()<<" # ";
+                            ", "<<popped.second->topk.back() <<"," << ch_obj.get_neighbor_vertex(popped.second->topk.back()).size()<<" # ";
                         cout<<popped.second->topk<<":"<<tmp<<"\n";
                     }
                     auto now = chrono::steady_clock::now();
@@ -1933,7 +1920,6 @@ int topRegions_efficient2(vector<vector<double>> &parent_region, ch &ch_obj,
             for (int top: popped.second->topk) {
                 ch_upd_s.erase(top);
             }
-            //TODO
             unordered_map<int, int> dominated_cnt;
             for(int i:ch_upd_s){
                 dominated_cnt[i]=ch_obj.dominated_map[i].size();
@@ -1955,17 +1941,41 @@ int topRegions_efficient2(vector<vector<double>> &parent_region, ch &ch_obj,
                     ch_upd.push_back(i);
                 }
             }
-//            vector<int> ch_upd(ch_upd_s.begin(), ch_upd_s.end());// from set to vector
-            // TODO
+
+
+            vector<int> EMPTY;
+            vector<double> wi;
+            qp_solver2(w, popped.second->cone, 0, EMPTY, PG, wi);
+            int top_opt=ch_upd[0];
+            double max_dot=0;
+            for(int ch_upd_opt: ch_upd){
+                double dot=0;
+                for (int i = 0; i <dim ; ++i) {
+                    dot+=PG[ch_upd_opt][i]*wi[i];
+                }
+                if(dot>max_dot){
+                    max_dot=dot;
+                    top_opt=ch_upd_opt;
+                }
+            }
+            EMPTY.push_back(top_opt);
+            vector<double> UNUSED;
+            vector<int> new_ch_upd;
+            for(int ch_upd_opt: ch_upd){
+                double ldist=qp_solver2(w, popped.second->cone, ch_upd_opt, EMPTY, PG, UNUSED);
+                if(ldist!=INFINITY){
+                    new_ch_upd.emplace_back(ch_upd_opt);
+                }
+            }
+
             const int square_vertex_cnt=dim+1;
             vector<vector<double>> square_vertexes(1, vector<double>(dim));
             // 时间主要开销， 主要性能瓶颈, 求凸包以及每个凸包点的top region
-//            unordered_map<int, vector<vector<double>>> tops_region=top_region2(ch_upd, PG, square_vertexes);
 
             vector<pair<int, double>> topip1;
-            for (int ch_upd_opt: ch_upd) {
+            for (int ch_upd_opt: new_ch_upd) {
                 vector<int> cmp;
-                for(int tmp_opt: ch_upd){
+                for(int tmp_opt: new_ch_upd){
                     if(tmp_opt!=ch_upd_opt){
                         cmp.push_back(tmp_opt);
                     }
@@ -1993,7 +2003,9 @@ int topRegions_efficient2(vector<vector<double>> &parent_region, ch &ch_obj,
                 id_radius.emplace(opt_radius.second, r);
                 cnt++;
             }
-//            cout<<"updated option num:"<<topip1.size()<<endl;
+//            cout<<"original size: "<<ch_upd.size()<<"\n";
+//            cout<<"midterm size: "<<new_ch_upd.size()<<"\n";
+//            cout<<"result size: "<<topip1.size()<<"\n";
         }
 
         if(popped.second->topk.size()!=k){
@@ -2009,6 +2021,445 @@ int topRegions_efficient2(vector<vector<double>> &parent_region, ch &ch_obj,
     }
     return cnt;
 }
+#include <lp_lib.h>
+
+class topi_region{
+    double radius;
+public:
+    int opt_i; // for root, this value is -1
+    int top_what;
+    topi_region *parent;
+    vector<int> child_constraint;
+    unordered_set<int> candidate ;// TODO 2021/2/1
+    unordered_set<int> fixed_candidate ;
+    topi_region(topi_region *pr, int topi, int rank){
+        if(pr){
+            fixed_candidate=pr->fixed_candidate;
+        }
+        parent= pr;
+        opt_i=topi;
+        top_what=rank;
+    }
+    void set_child_constr(const vector<int> &child_constr){
+        child_constraint=child_constr;
+    }
+    void set_radius(double r){
+        radius=r;
+    }
+    vector<int> get_topi(){
+        vector<int> ret;
+        topi_region *pr=this;
+        while(pr->parent){
+            ret.push_back(pr->opt_i);
+            pr=pr->parent;
+        }
+        return ret;
+    }
+    void lpModel(lprec* lp, int& dimen)
+    {
+        if (lp == nullptr)
+        {
+            fprintf(stderr, "Unable to create new LP model\n");
+            exit(0);
+        }
+        // constraints in each dimension
+        for (int di = 0; di < dimen; di++) {
+            set_bounds(lp, di+1, 0.0, 1.0);
+        }
+    }
+    void set_candidate(const unordered_set<int> &c, const vector<vector<double>>& H1, float **PG, int dim, int k){
+        vector<double> this_w(dim);
+        vector<float> UNUSED(dim);
+        vector<int> EMPTY;
+        feasible(UNUSED, H1, 0, EMPTY, PG, this_w);
+        multimap<double, int, greater<double>> find_top_ip1_to_k;
+        for(int opt:c){
+            double dot=0;
+            for (int i = 0; i <dim ; ++i) {
+                dot+=(PG[opt][i]+SIDELEN)*this_w[i];
+            }
+            find_top_ip1_to_k.emplace(dot, opt);
+        }
+        int size=k-this->top_what;
+        vector<int> topi=this->get_topi();
+        unordered_set<int> top_1_to_k(topi.begin(), topi.end());
+        while (top_1_to_k.size()<k) {
+            top_1_to_k.insert(find_top_ip1_to_k.begin()->second);
+            find_top_ip1_to_k.erase(find_top_ip1_to_k.begin());
+        }
+        vector<double> UNUSED2(dim);
+        for(int opt:c){
+            for(int cmp:top_1_to_k){
+                vector<int> tmp;
+                tmp.push_back(cmp);
+                double ldist = feasible(UNUSED, H1, opt, tmp, PG, UNUSED2);
+                if (ldist != INFINITY) {
+                    candidate.insert(opt);
+                    break;
+                }
+            }
+        }
+        for(int cmp:top_1_to_k){
+            candidate.insert(cmp);
+        }
+    }
+    double feasible(const vector<float>& w, const vector<vector<double>>& H1, int opt, vector<int>& cmp, float **PG,
+            vector<double> &retv, bool test=false){
+//        min 0.5 * x G x + g0 x
+//        s.t.
+//                CE^T x + ce0 = 0
+//        CI^T x + ci0 >= 0
+//        G: n * n
+//        g0: n
+//
+//        CE: n * m
+//        ce0: m
+//
+//        CI: n * p
+//        ci0: p
+//
+//        x: n
+        quadprogpp::Matrix<double> G, CE, CI;
+        quadprogpp::Vector<double> g0, ce0, ci0, x;
+        int n=w.size(), m, p;
+        if(!test){
+            G.resize(n, n);
+            {
+                for (int i = 0; i < n; i++){
+                    for (int j = 0; j < n; j++){
+                        if(i==j){
+                            G[i][j]=1.0;
+                        }else{
+                            G[i][j]=0.0;
+                        }
+                    }
+                }
+            }
+            g0.resize(n);
+            {
+                for (int i = 0; i < n; i++){
+                    g0[i]=-w[i];
+                }
+            }
+        }else{
+            G.resize(n, n);
+            for (int i = 0; i < n; i++){
+                for (int j = 0; j < n; j++){
+                    G[i][j]=0.0;
+                }
+            }
+            G[0][0]=1;
+            g0.resize(n);
+            {
+                for (int i = 0; i < n; i++){
+                    g0[i]=0;
+                }
+            }
+        }
+
+        m = 1;
+        CE.resize(n, m);
+        {
+            for (int i = 0; i < n; i++)
+                CE[i][0]=1.0;
+        }
+        ce0.resize(m);
+        {
+            for (int j = 0; j < m; j++)
+                ce0[j]=-1.0;
+        }
+
+
+        p = H1.size()+cmp.size()+w.size();
+        vector<int> opts;
+        vector<int> cmps;
+        int child_opt=opt_i;
+        topi_region *pr=parent;
+        while(pr!= nullptr){
+            p+=pr->child_constraint.size()-1;
+            for(int i:pr->child_constraint){
+                if(i==child_opt){
+                    continue;
+                }
+                opts.push_back(child_opt);
+                cmps.push_back(i);
+            }
+            child_opt=pr->opt_i;
+            pr=pr->parent;
+        }
+        CI.resize(n, p);
+        {
+            for (int i = 0; i < n; i++){
+                for (int j = 0; j < H1.size(); j++){
+                    CI[i][j]=-H1[j][i];
+                }
+                for (int j = H1.size(); j < H1.size()+cmp.size(); j++){
+                    CI[i][j]=PG[opt][i]-PG[cmp[j-H1.size()]][i];
+                }
+                for (int j = H1.size()+cmp.size(); j < p-w.size(); j++){
+                    CI[i][j]=PG[opts[j-H1.size()-cmp.size()]][i]-PG[cmps[j-H1.size()-cmp.size()]][i];
+                }
+                for (int j = p-w.size(); j < p; j++){
+                    if(i==j+w.size()-p){
+                        CI[i][j]=1.0;
+                    }else{
+                        CI[i][j]=0.0;
+                    }
+                }
+            }
+        }
+        ci0.resize(p);
+        {
+            for (int j = 0; j < p; j++)
+                ci0[j]=0;
+        }
+        x.resize(n);
+        double solver_ret=solve_quadprog(G, g0, CE, ce0, CI, ci0, x);
+        double ret=0;
+        for (int k = 0; k < n; ++k) {
+            ret+=(x[k]-w[k])*(x[k]-w[k]);
+        }
+        retv.resize(n);
+        for (int k = 0; k < n; ++k) {
+            retv[k]=x[k];
+        }
+        if(solver_ret == std::numeric_limits<double>::infinity()){
+            return INFINITY;
+        }
+        return sqrt(ret);
+    }
+    bool linear_feasible(const vector<float>& w, int opt, vector<int>& cmp, float **PG){
+        int dim=w.size();
+        lprec *lp = make_lp(0, dim);
+        set_verbose(lp, IMPORTANT);
+        set_scaling(lp, SCALE_GEOMETRIC + SCALE_EQUILIBRATE + SCALE_INTEGERS);
+        set_add_rowmode(lp, TRUE);
+        lpModel(lp, dim);
+        vector<double> obj(dim+1);
+        set_obj_fn(lp, obj.data());
+        vector<double *> store;
+        int child_opt=opt_i;
+        topi_region *pr=parent;
+        while(pr!= nullptr){
+            for(int other:pr->child_constraint){
+                if(other==child_opt){
+                    continue;
+                }
+                double *tmp=new double[dim+1];
+                for (int i = 0; i <dim ; ++i) {
+                    tmp[i+1]=PG[other][i]-PG[child_opt][i];
+                }
+                store.push_back(tmp);
+                add_constraint(lp, tmp, LE, 0.0);
+            }
+            child_opt=pr->opt_i;
+            pr=pr->parent;
+        }
+        for (int other:cmp) {
+            double *tmp=new double[dim+1];
+            for (int i = 0; i <dim ; ++i) {
+                tmp[i+1]=PG[other][i]-PG[opt][i];
+            }
+            store.push_back(tmp);
+            add_constraint(lp, tmp, LE, 0.0);
+        }
+        set_add_rowmode(lp, FALSE);
+        set_timeout(lp, 1);
+        int ret = solve(lp);
+        delete_lp(lp);
+        for(double *tmp: store){
+            delete [] (tmp);
+        }
+        return ret<=1;
+    }
+
+};
+
+
+
+int topRegions_efficient3(vector<vector<double>> &parent_region, ch &ch_obj,
+                         multimap<double, topi_region*> &id_radius, float **PG, int dim, int X,
+                         const int k, vector<float> &w, unordered_set<int> &top1_calculated,
+                         vector<pair<int, double>> &utk_option_ret,
+                         vector<pair<double, topi_region*>> &utk_cones_ret,
+                         unordered_map<int, vector<int>> &top1_region){
+    // init "top1_calculated" with top1 respecting to w
+    auto begin=chrono::steady_clock::now();
+    unordered_set<int> options;
+    for (int i:top1_calculated) {
+        options.insert(i);
+        utk_option_ret.emplace_back(i, 0);
+        cout << "radius: " << 0 << "\n";
+    }
+    vector<topi_region *> all;
+    int cnt=0;
+    int rcnt=0;
+    cout<<parent_region.size()<<endl;
+    while(options.size() < X && !id_radius.empty()){
+        ++rcnt;
+        pair<double, topi_region*> popped=*id_radius.begin(); // must deep copy because next line we use erase
+        id_radius.erase(id_radius.begin());
+        bool new_option=False;
+        bool newOption=False;
+        if(popped.second->top_what==1){
+            // if it is top1, push its adjacent vertex
+            const vector<int> &top1_adj=ch_obj.get_neighbor_vertex(popped.second->opt_i);
+            for (int adj_opt:top1_adj) {
+                if(top1_calculated.find(adj_opt)!=top1_calculated.end()){
+                    continue;
+                }
+                top1_calculated.insert(adj_opt);
+                auto iter = top1_region.find(adj_opt);
+                if(iter==top1_region.end()){
+                    continue; // precision problem occurs!
+                }
+                double dist=qp_solver2(w, parent_region,adj_opt, iter->second, PG);
+                if(dist!=INFINITY){
+                    topi_region *r=new topi_region(popped.second->parent, adj_opt, 1);
+                    all.push_back(r); // to delete
+                    id_radius.emplace(dist, r);
+                    cnt++;
+                }
+            }
+        }
+        if(popped.second->top_what==k){ // a region that don't need to be partitioned
+            vector<int> topk=popped.second->get_topi();
+            for(int opt:topk){
+                auto iter=options.find(opt);
+                if(iter==options.end()) {// new option
+                    options.insert(opt);
+                    utk_option_ret.emplace_back(opt, popped.first);
+                    cout << "radius: " << popped.first << "\n";
+                    if(true){
+                        vector<double> tmp(PG[opt], PG[opt]+dim);
+                        cout<<options.size()<<": " << popped.first << ", "<<utk_cones_ret.size()<<
+                            ", "<<rcnt <<"," << ch_obj.get_neighbor_vertex(opt).size()<<" # \n";
+                    }
+                    auto now = chrono::steady_clock::now();
+                    chrono::duration<double> elapsed_seconds= now-begin;
+                    cout << "time: " << options.size() << ", " << elapsed_seconds.count()<<"\n";
+                    new_option=True;
+                }
+            }
+            if(new_option){
+                popped.second->set_radius(popped.first);
+            }
+        }
+        else{
+            vector<int> topi=popped.second->get_topi();
+            unordered_set<int> ch_upd_s;
+            int m=0; // find maximal convex hull layer
+            for(int top: topi){
+                for(int adj: ch_obj.get_neighbor_vertex(top)){
+                    ch_upd_s.insert(adj);
+                }
+                m=max(ch_obj.get_option_layer(top), m);
+            }
+            for(int mp1_opt: ch_obj.get_layer(m+1)){
+                ch_upd_s.insert(mp1_opt);
+            }
+            for (int top: topi) {
+                ch_upd_s.erase(top);
+            }
+            // TODO 这里其实可以直接测dominate
+            unordered_map<int, int> dominated_cnt;// remove options dominated by other options than topi
+            for(int i:ch_upd_s){
+                dominated_cnt[i]=ch_obj.dominated_map[i].size();
+            }
+            for(int opt:ch_upd_s){
+                auto iter=ch_obj.dominated_map.find(opt);
+                if(iter!=ch_obj.dominated_map.end()){
+                    for(int i:topi){
+                        if(iter->second.find(i)!=iter->second.end()){
+                            --dominated_cnt[opt];
+                        }
+                    }
+                }
+            }
+            vector<int> ch_upd;
+            for (int i:ch_upd_s) {
+                auto iter=dominated_cnt.find(i);
+                if(iter!=dominated_cnt.end()&&iter->second<=0){
+                    ch_upd.push_back(i);
+                }
+            }
+
+            popped.second->set_candidate(popped.second->parent->candidate, parent_region, PG, dim, k);
+            vector<int> new_ch_upd;
+            for(int ch_upd_opt: ch_upd){
+                if(popped.second->candidate.find(ch_upd_opt)!=popped.second->candidate.end()){
+                    new_ch_upd.push_back(ch_upd_opt);
+                }
+            }
+//            cout<<ch_upd.size()<<","<<popped.second->candidate.size()<<"\n";
+//            vector<int> EMPTY;
+//            vector<double> wi;
+//            popped.second->feasible(w, parent_region, 0, EMPTY, PG, wi);
+//
+//            int top_opt=ch_upd[0];
+//            double max_dot=0;
+//            for(int ch_upd_opt: ch_upd){
+//                double dot=0;
+//                for (int i = 0; i <dim ; ++i) {
+//                    dot+=(PG[ch_upd_opt][i]+SIDELEN)*wi[i];
+//                }
+//                if(dot>max_dot){
+//                    max_dot=dot;
+//                    top_opt=ch_upd_opt;
+//                }
+//            }
+//            EMPTY.push_back(top_opt);
+//            vector<double> UNUSED;
+//            vector<int> new_ch_upd;
+//            for(int ch_upd_opt: ch_upd){
+//                double ldist=popped.second->feasible(w, parent_region, ch_upd_opt, EMPTY, PG, UNUSED);
+//                if(ldist!=INFINITY){
+//                    new_ch_upd.emplace_back(ch_upd_opt);
+//                }
+//            }
+
+            const int square_vertex_cnt=dim+1;
+            vector<vector<double>> square_vertexes(1, vector<double>(dim));
+            // 时间主要开销， 主要性能瓶颈, 求凸包以及每个凸包点的top region
+
+            vector<pair<int, double>> topip1;
+            vector<int> next_topi;
+            vector<double> UNUSED(dim);
+
+            for (int ch_upd_opt: new_ch_upd) {
+                vector<int> cmp;
+                for(int tmp_opt: new_ch_upd){
+                    if(tmp_opt!=ch_upd_opt){
+                        cmp.push_back(tmp_opt);
+                    }
+                }
+                double dist=popped.second->feasible(w, parent_region, ch_upd_opt, cmp, PG, UNUSED);
+                if(dist!=INFINITY){
+                    topip1.emplace_back(ch_upd_opt, dist);
+                    next_topi.push_back(ch_upd_opt);
+                }
+            }
+//            cout<<"original size: "<<ch_upd.size()<<"\n";
+//            cout<<"midterm size: "<<new_ch_upd.size()<<"\n";
+//            cout<<"result size: "<<next_topi.size()<<"\n";
+
+            for(auto &opt_radius:topip1){
+                topi_region *r=new topi_region(popped.second, opt_radius.first, popped.second->top_what+1);
+                all.push_back(r);
+                id_radius.emplace(opt_radius.second, r);
+                cnt++;
+            }
+            popped.second->child_constraint=next_topi;
+        }
+    }
+    cout<<"cnt: "<<cnt<<"\n";
+    for (auto left:all) {
+        delete (left);
+    }
+    return cnt;
+}
+
+
 
 
 vector<vector<double>> points_to_halfspace(vector<vector<double>> &points){
@@ -2209,9 +2660,9 @@ void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X,
 
 }
 
-int utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
-               vector<pair<int, double>> &utk_option_ret,
-               vector<pair<double, region*>> &utk_cones_ret){
+int utk_efficient3(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
+                  vector<pair<int, double>> &utk_option_ret,
+                  vector<pair<double, region*>> &utk_cones_ret){
 
     // two return values
     // 1. array of <option, topk_radius>
@@ -2330,6 +2781,239 @@ int utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int
 
         auto lbegin = chrono::steady_clock::now();
 
+        CH_1_X_opt=build_qhull(CH_1_X_opt, PointSet, square_vertexes);
+        auto lnow = chrono::steady_clock::now();
+        chrono::duration<double> lelapsed_seconds= lnow-lbegin;
+        cout << lelapsed_seconds.count()<<endl;
+        cout<< cnt<<" rebuild qhull finish "<< CH_1_X_opt.size() <<endl;
+        if(next.second==INFINITY){
+            break;
+        }
+        if(CH_1_X_opt.size()==X){
+            break;
+        }else if(CH_1_X_opt.size()>X){
+            maxc=midc-1;
+        }else{
+            minc=midc+1;
+        }
+    }
+
+    // 2. end: continue step 1 to fill CH1 until CH1 contains m options
+    // 3. getting estimate \rho^* from step 2
+    float rho_star=get_next_obj.interval[min(midc-1, get_next_obj.interval.size()-1)].second;
+
+    cout << "init rho_star: "<<rho_star<<endl;
+    now = chrono::steady_clock::now();
+    elapsed_seconds= now-begin;
+    cout<< elapsed_seconds.count() << " finish rho_star compute\n";
+    // use known X version code to fetch rskyband options,
+    // bear in mind such that we init \rho as \rho_star and X as INFINITY
+    // 4. begin: apply \rho^* to get r-k-skyband
+    vector<pair<long int, float>> interval;
+    computeRho(dim, k, INFINITY, w, *rtree, PointSet, interval, rho_star);
+    vector<int> rskyband_CS;
+    for (pair<long int, float> &p:interval) {
+        rskyband_CS.push_back(p.first);
+    }
+    // 4. end: apply \rho^* to get r-k-skyband
+    cout<< elapsed_seconds.count() << " rskyband size: "<<rskyband_CS.size()<< "\n";
+
+    vector<vector<double>> tmp;
+    // 5. begin: apply \rho^* to get initial domain
+
+    double rho_star_d=rho_star; // change from float to double
+
+    for (vector<c_float> &e:g_r_domain_vec) {
+        double atc_rho=rho_star_d;
+//        double atc_rho=rho_star_d*sqrt(dim);
+
+        for (int i = 0; i < e.size(); ++i) {
+            if(e[i]<0){
+                atc_rho=min(atc_rho, -w[i]/e[i]); // in case of w[i] + \rho * e[i] <0 or >1
+            }
+        }
+        tmp.push_back(atc_rho*e+w);
+    }
+    now = chrono::steady_clock::now();
+    elapsed_seconds= now-begin;
+    cout<< elapsed_seconds.count() << " begin generate domain" << endl;
+    vector<vector<double>> begin_region=points_to_halfspace(tmp);
+    now = chrono::steady_clock::now();
+    elapsed_seconds= now-begin;
+    cout<< elapsed_seconds.count() <<"finish generate domain \n";
+    // 5. end: apply \rho^* to get initial domain
+
+    // 6. begin: get the top regions of CH1's options
+    cout << " begin find top1 region" << endl;
+    vector<vector<double>> square_vertexes2(square_vertex_cnt, vector<double>(dim));
+    // init convex hull object, this object can conveniently return CH_i given input i
+    ch ch_obj(rskyband_CS, PointSet, dim);
+    const vector<int>& top1_idxes=ch_obj.get_layer(1);// get CH1
+    cout<<"finish finding CH1"<<endl;
+    unordered_map<int, vector<int>> top1_region;
+    for(int i:top1_idxes){
+        auto iter=ch_obj.A_p.find(i);
+        if(iter!=ch_obj.A_p.end()){
+            top1_region[i]=iter->second;
+        }
+    }
+    now = chrono::steady_clock::now();
+    elapsed_seconds= now-begin;
+    cout<< elapsed_seconds.count() << " finish find top1 region" << endl;
+    // 6. begin: get the top regions of CH1's options
+
+    // 7. begin: init ORU heap with top1's top region
+    auto iter=top1_region.find(top1);
+    assert(iter != top1_region.end());
+    unordered_set<int> top1_calculated;
+    top1_calculated.insert(top1);
+    topi_region *root=new topi_region(nullptr, -1, -1);
+    root->set_child_constr(top1_idxes);
+    root->candidate=ch_obj.all;
+
+    topi_region *top1r=new topi_region(root, top1, 1);
+    top1r->set_radius(0);
+
+    multimap<double, topi_region*> id_radius; // <radius, region>
+    id_radius.emplace(0, top1r);
+    // 7. end: init ORU heap with top1's top region
+
+    now = chrono::steady_clock::now();
+    elapsed_seconds= now-begin;
+    cout<< elapsed_seconds.count() << "starting recursively get top regions\n";
+    // 8. begin: apply ORU, that is recursively divide regions
+    vector<pair<double, topi_region*>> utk_cones_ret_;
+    int ret=topRegions_efficient3(begin_region, ch_obj, id_radius,  PointSet, dim, X,
+                                  k,  w, top1_calculated, utk_option_ret, utk_cones_ret_, top1_region);
+    delete(root);
+    delete(top1r);
+    // 8. end: apply ORU, that is recursively divide regions
+    now = chrono::steady_clock::now();
+    elapsed_seconds= now-begin;
+    cout<< elapsed_seconds.count();
+    cout<< " finish recursively get top regions\n";
+    return ret;
+}
+
+int utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
+               vector<pair<int, double>> &utk_option_ret,
+               vector<pair<double, region*>> &utk_cones_ret){
+
+    // two return values
+    // 1. array of <option, topk_radius>
+    // 2. array of <topk, region>
+    auto begin = chrono::steady_clock::now();
+    auto now = chrono::steady_clock::now();
+    chrono::duration<double> elapsed_seconds= now-begin;
+
+    // 1. fetch 1-skyband with m options
+    // 2. continue step 1 to fill CH1 until CH1 contains m options
+    // 3. getting estimated \rho^* from step 2
+    // 4. apply \rho^* to get r-k-skyband (this is for pruning irrelevent options)
+    // 5. apply \rho^* to get initial domain (this is for pruning unnecessary regions)
+    // 6. get the top regions of CH1's options
+    // 7. init ORU heap with top1's top region
+    // 8. apply ORU, that is recursively divide regions
+
+
+    // 1. begin: fetch 1-skyband with m options
+    unknown_x_efficient get_next_obj(dim, 1, w, *rtree, PointSet);
+    pair<int, float> next={-1, INFINITY};
+    cout<< "begin fetch CH1"<<endl;
+    vector<int> CH_1_X_opt;
+    int top1=0;
+    bool top1f= false;
+    while(CH_1_X_opt.size() < X){
+        next=get_next_obj.get_next();
+        cout<<get_next_obj.interval.size()<<" "<<next.second<<endl;
+        CH_1_X_opt.push_back(next.first);
+        if(!top1f){
+            top1=CH_1_X_opt.back();
+            top1f=true;
+        }
+    }
+    now = chrono::steady_clock::now();
+    elapsed_seconds= now-begin;
+    cout<< elapsed_seconds.count() << " fetch top-m finish\n";
+    // 1. end: fetch 1-skyband with m options
+
+    // a 3-d example of square_vertex, square_vertex_cnt=4
+    // point 0: (max(points[:, 0]), 0, 0)
+    // point 1: (0, max(points[:, 1]), 0)
+    // point 2: (0, 0, max(points[:, 2]))
+    // point 3: \vec{0}
+    const int square_vertex_cnt=dim+1;
+    vector<vector<double>> square_vertexes(1, vector<double>(dim));
+
+    // qhull class in lib qhull
+    // init qhull with top X options
+    CH_1_X_opt=build_qhull(CH_1_X_opt, PointSet, square_vertexes);
+
+    now = chrono::steady_clock::now();
+    elapsed_seconds= now-begin;
+    cout<< elapsed_seconds.count() << " first time build qhull finish\n";
+
+    // rho_star is computed when CH_1.size()=X
+    int cnt=0;
+    // 2. begin: continue step 1 to fill CH1 until CH1 contains m options
+
+    int minc=X, maxc=2*X, midc=X;
+    while(CH_1_X_opt.size() < X){ // find the maxc
+        midc=maxc; // make sure correct rho_star
+        if(get_next_obj.interval.size()<maxc){
+            while(get_next_obj.interval.size()<maxc){
+                next=get_next_obj.get_next();
+                cout<<get_next_obj.interval.size()<<" "<<next.second<<endl;
+                if(next.second==INFINITY){
+                    break;
+                }
+                CH_1_X_opt.push_back(next.first);
+                cnt++;
+            }
+        }else{
+            CH_1_X_opt.clear();
+            for (int j = 0; j <maxc ; ++j) {
+                CH_1_X_opt.push_back(get_next_obj.interval[j].first);
+            }
+        }
+
+        auto lbegin = chrono::steady_clock::now();
+        CH_1_X_opt=build_qhull(CH_1_X_opt, PointSet, square_vertexes);
+        auto lnow = chrono::steady_clock::now();
+        chrono::duration<double> lelapsed_seconds= lnow-lbegin;
+        cout << lelapsed_seconds.count()<<endl;
+        cout<< cnt<<" rebuild qhull finish "<< CH_1_X_opt.size() <<endl;
+        if(next.second==INFINITY){
+            break;
+        }
+        if(CH_1_X_opt.size()>=X){
+            break;
+        }else{
+            minc=maxc;
+            maxc*=2;
+        }
+    }
+    while(CH_1_X_opt.size() != X){ // while(CH_1.size<X)
+        midc=(maxc+minc)/2;
+        if(get_next_obj.interval.size()<=midc){
+            while(get_next_obj.interval.size()<midc){
+                next=get_next_obj.get_next();
+                cout<<get_next_obj.interval.size()<<" "<<next.second<<endl;
+                if(next.second==INFINITY){
+                    break;
+                }
+                update_square_vertexes(square_vertexes, PointSet[next.first], dim);
+                CH_1_X_opt.push_back(next.first);
+                cnt++;
+            }
+        }else{
+            CH_1_X_opt.clear();
+            for (int j = 0; j <midc ; ++j) {
+                CH_1_X_opt.push_back(get_next_obj.interval[j].first);
+            }
+        }
+
+        auto lbegin = chrono::steady_clock::now();
         CH_1_X_opt=build_qhull(CH_1_X_opt, PointSet, square_vertexes);
         auto lnow = chrono::steady_clock::now();
         chrono::duration<double> lelapsed_seconds= lnow-lbegin;

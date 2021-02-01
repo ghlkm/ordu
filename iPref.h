@@ -165,4 +165,8 @@ int utk_efficient_anti(float **PointSet, int dim, vector<float> &w, Rtree* rtree
 int utk_efficient_cs3(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
                       vector<pair<int, double>> &utk_option_ret,
                       vector<pair<double, region*>> &utk_cones_ret, double &rho_star);
+
+int utk_efficient3(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
+                   vector<pair<int, double>> &utk_option_ret,
+                   vector<pair<double, region*>> &utk_cones_ret);
 #endif

@@ -481,7 +481,7 @@ int main(const int argc, const char** argv)
         auto begin = chrono::steady_clock::now();
         vector<double> avg_time(X);
         vector<float> avg_radius(X, 0.0);
-        for (int wi = 15; wi < w_num; wi++)
+        for (int wi = 0; wi < w_num; wi++)
         {
             auto w_begin = chrono::steady_clock::now();
             int k=ks[wi];
@@ -512,6 +512,60 @@ int main(const int argc, const char** argv)
                 cout<<radius/(wi+1)<<endl;
             }
              double rho = utk_option_ret.back().second;
+            for (pair<double, region*> &tmp: utk_cones_ret) {
+                delete(tmp.second);
+            }
+            cout << "The inflection radius is: " << rho << endl;
+        }
+
+        ad = clock();
+        cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+        cout << "Total generated regions: " << avg_rt_cnt/w_num<<endl;
+        cout << "Total return regions: " << avg_rr_cnt/w_num<<endl;
+        for (float radius:avg_radius) {
+            cout<<radius/w_num<<endl;
+        }
+        auto now = chrono::steady_clock::now();
+        chrono::duration<double> elapsed_seconds= now-begin;
+        cout<<elapsed_seconds.count();
+    }
+    if (strcmp(methodName, "UTK_OA3") == 0) // ORU efficient
+    {
+        at = clock();
+        auto begin = chrono::steady_clock::now();
+        vector<double> avg_time(X);
+        vector<float> avg_radius(X, 0.0);
+        for (int wi = 0; wi < w_num; wi++)
+        {
+            auto w_begin = chrono::steady_clock::now();
+            int k=ks[wi];
+            // weight vector for testing, we should remove the redundant one
+            vector<float> w(ws[wi].begin(), ws[wi].end());
+            cout << "Testing w: ";
+            for (int di = 0; di < dim-1; di++)
+            {
+                cout << w[di] << ", ";
+            }
+            cout <<w.back()<< endl;
+            vector<pair<int, double>> utk_option_ret;
+            vector<pair<double, region*>> utk_cones_ret;
+            // the code commented below just for anti data
+//            int generated_r_cnt= utk_efficient_anti(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
+            int generated_r_cnt= utk_efficient3(PointSet, dim, w, rtree, X, k, utk_option_ret,utk_cones_ret);
+            avg_rt_cnt+=generated_r_cnt;
+            avg_rr_cnt+=utk_cones_ret.size();
+            cout<<"ret size: "<<utk_option_ret.size()<<"\n";
+            for (int i = 0; i < avg_radius.size(); ++i) {
+                if(i<utk_option_ret.size()){
+                    avg_radius[i]+=utk_option_ret[i].second;
+                }else{
+                    avg_radius[i]+=1000000;
+                }
+            }
+            for (float radius:avg_radius) {
+                cout<<radius/(wi+1)<<endl;
+            }
+            double rho = utk_option_ret.back().second;
             for (pair<double, region*> &tmp: utk_cones_ret) {
                 delete(tmp.second);
             }
