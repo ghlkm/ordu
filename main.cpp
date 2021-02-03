@@ -29,6 +29,12 @@ double treeSpacecost = 0.0;
 double Spacecost = 0.0;
 clock_t at, ad;
 
+extern double ord_m_t;
+extern double rho_star_t;
+extern double rskyband_t;
+extern double ch_1_t;
+extern double rec_oru_t;
+
 int main(const int argc, const char** argv)
 {
 	cout.precision(6);
@@ -528,6 +534,18 @@ int main(const int argc, const char** argv)
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
         cout<<elapsed_seconds.count();
+
+        cout<<"output time stat:\n";
+        rec_oru_t-=ch_1_t;
+        ch_1_t-=rskyband_t;
+        rskyband_t-=rho_star_t;
+        rho_star_t-=ord_m_t;
+        cout<<ord_m_t/w_num<<endl;
+        cout<<rho_star_t/w_num<<endl;
+        cout<<rskyband_t/w_num<<endl;
+        cout<<ch_1_t/w_num<<endl;
+        cout<<rec_oru_t/w_num<<endl;
+
     }
     if (strcmp(methodName, "UTK_OA3") == 0) // ORU efficient
     {
