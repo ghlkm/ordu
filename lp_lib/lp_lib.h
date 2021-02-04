@@ -1915,6 +1915,8 @@ MYBOOL __EXPORT_TYPE __WINAPI is_feasible(lprec *lp, REAL *values, REAL threshol
 int __EXPORT_TYPE __WINAPI solve(lprec *lp);
 /* Solve the problem */
 
+
+
 REAL __EXPORT_TYPE __WINAPI get_accuracy(lprec *lp);
 
 void __EXPORT_TYPE __WINAPI set_break_numeric_accuracy(lprec *lp, REAL accuracy);

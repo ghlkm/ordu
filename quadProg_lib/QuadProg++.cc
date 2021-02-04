@@ -19,6 +19,7 @@ File $Id: QuadProg++.cc 232 2007-06-21 12:29:00Z digasper $
 #include <stdexcept>
 #include "QuadProg++.hh"
 //#define TRACE_SOLVER
+#include <chrono>
 
 namespace quadprogpp {
 
@@ -54,7 +55,8 @@ double solve_quadprog(Matrix<double>& G, Vector<double>& g0,
                       const Matrix<double>& CI, const Vector<double>& ci0, 
                       Vector<double>& x)
 {
-  std::ostringstream msg;
+    auto begin = std::chrono::steady_clock::now();
+    std::ostringstream msg;
   unsigned int n = G.ncols(), p = CE.ncols(), m = CI.ncols();
   if (G.nrows() != n)
   {
@@ -417,7 +419,12 @@ l2a:/* Step 2a: determine step direction */
     print_vector("A", A, iq);
 		print_vector("iai", iai);
 #endif
-    goto l1;
+      auto now = std::chrono::steady_clock::now();
+      std::chrono::duration<double> elapsed_seconds= now-begin;
+      if(elapsed_seconds.count()>=0.01){
+          return inf;
+      }
+      goto l1;
   }
   
   /* a patial step has taken */

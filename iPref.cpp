@@ -1974,7 +1974,6 @@ int topRegions_efficient2(vector<vector<double>> &parent_region, ch &ch_obj,
 //                }
 //            }
             auto now2 = chrono::steady_clock::now();
-
 //            vector<int> tc=vector<int>(ch_upd_s.begin(), ch_upd_s.end());
             vector<int> tc=vector<int>(ch_upd.begin(), ch_upd.end());
             vector<int> new_ch_upd=r_dominate_filter(tc, popped.second->cone, PG);
@@ -2289,6 +2288,46 @@ public:
 
 };
 
+
+vector<double> get_minmax_dimm1_3(const vector<vector<double>> &R) {
+    //        min 0.5 * x G x + g0 x
+//        s.t.
+//                CE^T x + ce0 = 0
+//        CI^T x + ci0 >= 0
+//        G: n * n
+//        g0: n
+//
+//        CE: n * m
+//        ce0: m
+//
+//        CI: n * p
+//        ci0: p
+//
+//        x: n
+    int dim=R[0].size();
+    double min_max[]={1, -1};
+    vector<double> ret;
+    for (int i1 = 0; i1 < dim-1; ++i1) {
+        for (int j1 = 0; j1 <2 ; ++j1){
+            vector<double> g0(dim);
+            int n=dim;
+            g0.resize(n);
+            for (int k = 0; k < n; ++k){
+                if(i1==k){
+                    g0[k]=min_max[j1];
+                }else{
+                    g0[k]=0;
+                }
+            }
+            double solver_ret;
+            qp_solver qs(g0, R, solver_ret);
+            ret.push_back(min_max[j1]*solver_ret);
+        }
+    }
+
+    return ret;
+}
+
 vector<double> get_minmax_dimm1_2(const vector<vector<double>> &R) {
     //        min 0.5 * x G x + g0 x
 //        s.t.
@@ -2308,69 +2347,91 @@ vector<double> get_minmax_dimm1_2(const vector<vector<double>> &R) {
     quadprogpp::Matrix<double> G, CE, CI;
     quadprogpp::Vector<double> g0, ce0, ci0, x;
     int n=dim, m, p;
-    G.resize(n, n);
-    for (int i = 0; i < n; i++){
-        for (int j = 0; j < n; j++){
-            if(i==j){
-                G[i][j]=1e-6;
-            }else{
-                G[i][j]=0.0;
-            }
-        }
-    }
-    g0.resize(n);
-
-    m = 1;
-    CE.resize(n, m);
-    {
-        for (int i = 0; i < n; i++)
-            CE[i][0]=1.0;
-    }
-    ce0.resize(m);
-    {
-        for (int j = 0; j < m; j++)
-            ce0[j]=-1.0;
-    }
-
-
-    p = R.size()+dim;
-
-    CI.resize(n, p);
-    {
-        for (int i = 0; i < n; i++){
-            for (int j = 0; j < R.size(); j++){
-                CI[i][j]=-R[j][i];
-            }
-            for (int j = p-R.size(); j < p; j++){
-                if(i==j+R.size()-p){
-                    CI[i][j]=1.0;
-                }else{
-                    CI[i][j]=0.0;
-                }
-            }
-        }
-    }
-    ci0.resize(p);
-    {
-        for (int j = 0; j < p; j++)
-            ci0[j]=0;
-    }
-    x.resize(n);
-    double min_max[]={-1, 1};
+    double min_max[]={1, -1};
     vector<double> ret;
 
-    for (int i = 0; i < dim-1; ++i) {
-        for (int j = 0; j <2 ; ++j){
+    for (int i1 = 0; i1 < dim-1; ++i1) {
+        for (int j1 = 0; j1 <2 ; ++j1){
+            g0.resize(n);
+
             for (int k = 0; k < n; ++k){
-                if(i==k){
-                    g0[k]=min_max[j];
+                if(i1==k){
+                    g0[k]=min_max[j1];
                 }else{
                     g0[k]=0;
                 }
             }
+
+            G.resize(n, n);
+            for (int i = 0; i < n; i++){
+                for (int j = 0; j < n; j++){
+                    if(i==j){
+                        G[i][j]=1e-8;
+                    }else{
+                        G[i][j]=0.0;
+                    }
+                }
+            }
+
+            m = 1;
+            CE.resize(n, m);
+            {
+                for (int i = 0; i < n; i++)
+                    CE[i][0]=1.0;
+            }
+            ce0.resize(m);
+            {
+                for (int j = 0; j < m; j++)
+                    ce0[j]=-1.0;
+            }
+
+
+            p = R.size()+dim;
+//            p = R.size();
+
+            CI.resize(n, p);
+            {
+                for (int i = 0; i < n; i++){
+                    for (int j = 0; j < R.size(); j++){
+                        CI[i][j]=-R[j][i];
+                    }
+                    for (int j = R.size(); j < p; j++){
+                        if(i==j-R.size()){
+                            CI[i][j]=1.0;
+                        }else{
+                            CI[i][j]=0.0;
+                        }
+                    }
+                }
+            }
+            ci0.resize(p);
+            {
+                for (int j = 0; j < p; j++)
+                    ci0[j]=0;
+            }
+//            ci0.resize(R.size());
+//            {
+//                for (int j = 0; j < R.size(); j++)
+//                    ci0[j]=0;
+//            }
+            x.resize(n);
+
             double solver_ret=solve_quadprog(G, g0, CE, ce0, CI, ci0, x);
-            ret.push_back(solver_ret);
+            if(solver_ret==std::numeric_limits<double>::infinity()){
+                ret.clear();
+                return ret;
+            }
+            ret.push_back(min_max[j1]*solver_ret);
+            vector<double> tmp(n);
+            for (int k = 0; k < n; ++k) {
+                tmp[k]=x[k];
+            }
+//            cout<<solver_ret<<":"<<tmp<<endl;
         }
+    }
+    vector<double> tmp(n);
+    for (int k = 0; k < n; ++k) {
+        tmp[k]=x[k];
     }
     return ret;
 }
@@ -2408,6 +2469,7 @@ vector<double> get_minmax_dimm1(const vector<vector<double>> &R){
                     add_constraint(lp, tmp, LE, 0.0);
                 }
                 set_add_rowmode(lp, FALSE);
+                set_maxim(lp);
                 set_timeout(lp, 1);
                 solve(lp);
                 get_primal_solution(lp, w.data());
@@ -2440,9 +2502,13 @@ void rec_get_bound(const vector<double> &minmax,  int cur, vector<double> &v, ve
 vector<vector<double>> get_region_bound(const vector<vector<double>> &R){
     auto now1 = chrono::steady_clock::now();
     vector<double> minmax = get_minmax_dimm1_2(R); // a 2*(dim-1) vector
+
     auto now2 = chrono::steady_clock::now();
     vector<double> EMPTY;
     vector<vector<double>> bounds;
+    if(minmax.empty()){
+        return bounds;
+    }
     rec_get_bound(minmax, 0, EMPTY, bounds);
     auto now3 = chrono::steady_clock::now();
     chrono::duration<double> elapsed_seconds1= now2-now1;
@@ -2498,6 +2564,9 @@ vector<int> r_dominate_filter(const vector<int> &top_ip1_cdd,
     }
     auto now1 = chrono::steady_clock::now();
     vector<vector<double>> ws=get_region_bound(R);
+    if(ws.empty()){
+        return ret;
+    }
     auto now2 = chrono::steady_clock::now();
 
     int dim=R[0].size();
