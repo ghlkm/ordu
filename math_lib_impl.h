@@ -2,7 +2,7 @@
 #ifndef UTK_BV_UTK_MATH_LIB_IMPL_H
 #define UTK_BV_UTK_MATH_LIB_IMPL_H
 
-#include "utk_vector.h"
+#include "vector_operator.h"
 #include <vector>
 #include <cmath>
 #include <cassert>
@@ -60,7 +60,7 @@ double inflection_radius(const V &fetch, const VV &PG, vector<c_float> &w,
 
 template<typename V, typename VV, typename A>
 double inflection_radius(const V &fetch, const VV &PG, vector<c_float> &w,
-                         const A &pdt, int dimen, int k, const double &rou,
+                         const A &pdt, int dimen, int k, const double &rho,
                          multiset<double> &radius, unsigned int &cnt) {
     vector<c_float> h_ij(dimen, 0);
     auto iter = fetch.begin();
@@ -78,7 +78,7 @@ double inflection_radius(const V &fetch, const VV &PG, vector<c_float> &w,
         ++iter;
     }
     for (; iter != fetch.end(); ++iter) {
-        if (*radius.begin() >= rou) {
+        if (*radius.begin() >= rho) {
             break;
         } else {
             ++cnt;
@@ -156,75 +156,21 @@ double sum(const ITER &begin, const ITER &end){
     return ret;
 }
 
-template<typename V>
-double domin_r_ij(const V &w, const V &h_ij) {
-    /*
-     * \tpara V utk_vector
-     *
-     * return:
-     *   r_ij
-     */
-    /*
-     * n is one of the normal vector of hyperplane h_ij, actually the coefficients of h_ij is n
-     *
-     * cos(\theta) |w| = w \cdot n / |n|
-     *
-     * w_ij_ = w- n cos(\theta) |w|/|n| = w- w \cdot n \cdot n / |n|^2
-     *
-     * w_ij = \lambda w_ij_, \Sigma w_ij =1
-     * --> w_ij = w_ij_ / \Sigma w_ij_
-     *
-     * inflection distance r_ij^2 = (w-w_ij) \cdot (w-w_ij)
-     */
-
-    // h_ij and w can be with dif direction because of
-    // the resulting w_ij_=w-w*h_ij*h_ij/(h_ij*h_ij)
-    V w_ij_ = w - w * h_ij * h_ij / (h_ij * h_ij); // dot product can not change operate order!!!
-    double mod1 = 0;
-    for (auto i = 0; i < w_ij_.size(); ++i) {
-        mod1 += w_ij_[i];
-    }
-    for (auto i = 0; i < w_ij_.size(); ++i) {
-        w_ij_[i] /= mod1;
-    }
-    // now w_ij=w_ij_
-    V &&d = w - w_ij_;
-    return d * d; // rou^2;
-}
-
-
-template<typename V>
-double domin_r_ij2(const V &w, const V &h_ij) {
-    // sample from h_ij
-    assert(h_ij.size() >= 2);
-    V A(h_ij.size(), 0.0);
-    float sum = -h_ij[0] + h_ij[1];
-    if (sum != 0) {
-        A[0] = h_ij[1] / sum;
-        A[1] = -h_ij[0] / sum;
-    } else {
-        A[0] = 0.5;
-        A[1] = 0.5;
-    }
-    V WA = A - w;
-    V ones(h_ij.size(), 1.0);
-    V ones_n = ones - proj(h_ij, ones);
-    V d = proj(h_ij, WA) + proj(ones_n, WA);
-    return sqrt(d * d);
-}
 
 extern qp_solver *qp_ptr;
 template<typename V>
 double domin_r_ij3(const V &w, const V &h_ij) {
-    return qp_ptr->solve_update_h(h_ij);
+    //TODO this can be lazy only update h_ij sometimes
+    return qp_ptr->update_w_h_solve(w, h_ij);
 }
+
 template<typename V>
 inline V proj(const V &u, const V &v) {
     return (u * v) / (u * u) * u;
 }
 
 template<typename V>
-inline c_float L2_norm(V &v) {
+inline c_float vector_length(V &v) {
     c_float ret = c_float();
     for (auto &i:v) {
         ret += i * i;
@@ -252,9 +198,9 @@ VV gram_schmidt_process(const VV &input) {
     }
     // begin normalize result
     for (int k = 0; k < ret.size(); ++k) {
-        c_float l2_norm = L2_norm(ret[k]);
+        c_float norm_of_v = vector_length(ret[k]);
         for (auto &ele:ret[k]) {
-            ele /= l2_norm;
+            ele /= norm_of_v;
         }
     }
     return ret;
@@ -293,10 +239,11 @@ vector<vector<c_float>> gen_r_domain_vec(INTEGER dim) {
     vector<vector<c_float>> ret; // size with 2^(d-1)
     vector<c_float> cur(dim);
     gen_r_domain_vec_dfs(cur, 0, ret, e);
-    return ret; // each element of it is with L2_norm=sqrt(d-1)
+    return ret;
 }
 
 extern vector<vector<c_float>> g_r_domain_vec;
+
 template<typename VF, typename VI, typename VV, typename FLOAT>
 bool isR_skyband(const VV &PG, const VI&vs, const VF &opt, const VF &w, const FLOAT &rho, int k) {
     int r_dominate_cnt=0;
@@ -312,6 +259,16 @@ bool isR_skyband(const VV &PG, const VI&vs, const VF &opt, const VF &w, const FL
 }
 
 
+
+template<typename V>
+inline bool v1_v2_nonDominate(const V&v1, const V&v2, std::size_t size){
+    return !v1_dominate_v2(v1, v2, size) && !v1_dominate_v2(v2, v1, size);
+}
+
+template<typename V>
+inline bool v1_v2_nonDominate(const V&v1, const V&v2){
+    return v1_v2_nonDominate(v1, v2, v1.size());
+}
 
 
 
@@ -332,7 +289,50 @@ bool v2_r_dominate_v1(const V &v1, const V &v2, const V &w, const VV &r_domain_v
     return true;
 }
 
+template<typename INT, typename VV>
+vector<INT> computeTopK(const int dim, VV &PG, vector<INT> &skyband, vector<float>& weight, int k)
+{
+    multimap<float, INT> heap;
+    for (int i = 0; i < skyband.size(); i++)
+    {
+        float score = 0;
+        for (int d = 0; d < dim; d++)
+        {
+            score += PG[skyband[i]][d] *weight[d];
+        }
 
+        if (heap.size() < k)
+        {
+            heap.emplace(score, skyband[i]);
+        }
+        else if (heap.size() == k && heap.begin()->first < score)
+        {
+            heap.erase(heap.begin());
+            heap.emplace(score, skyband[i]);
+        }
+    }
+
+    vector<INT> topkRet;
+    for (auto heapIter = heap.rbegin(); heapIter != heap.rend(); ++heapIter)
+    {
+        topkRet.push_back(heapIter->second);
+    }
+    return topkRet;
+}
+
+template<typename V1, typename V2>
+inline double dot(V1 &v1, V2 &v2){
+    return dot(v1, v2, v1.size());
+}
+
+template<typename V1, typename V2>
+inline double dot(V1 &v1, V2 &v2, std::size_t size){
+    double ret=0;
+    for (int i = 0; i < size; ++i) {
+        ret+=v1[i]*v2[i];
+    }
+    return ret;
+}
 
 #endif //UTK_BV_UTK_MATH_LIB_IMPL_H
 

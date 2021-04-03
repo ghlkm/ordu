@@ -1,10 +1,14 @@
-cmake_minimum_required(VERSION 3.12)
+### the version of cmake can be lower or higher
+cmake_minimum_required(VERSION 3.10)
 project(iPref)
 
+### the version of c++ can be later or equals to c++11
 set(CMAKE_CXX_STANDARD 14)
 
+### please see how to install qhull in README.md and change the path of qhull based on your machine
 ### add qhull
 include_directories(/usr/local/include/libqhullcpp)
+
 ### qhullstatic reentrant library
 add_library(libqhullstatic_r STATIC IMPORTED)
 set_property(TARGET libqhullstatic_r PROPERTY IMPORTED_LOCATION /usr/local/lib/${CMAKE_STATIC_LIBRARY_PREFIX}qhullstatic_r${CMAKE_STATIC_LIBRARY_SUFFIX})
@@ -31,40 +35,46 @@ include_directories(${CMAKE_SOURCE_DIR}/lp_lib)
 
 include_directories(.)
 
-add_executable(iPref collection.cpp
-        collection.h
-        filemem.cpp
-        filemem.h
-        global.cpp
-        global.h
-        header.h
-        hypercube.cpp
-        hypercube.h
+add_executable(iPref rtree_lib/collection.cpp
         iPref.cpp
         iPref.h
         main.cpp
-        mem.h
-        param.cpp
-        param.h
-        point.cpp
-        point.h
-        queryGen.cpp
-        queryGen.h
-        rentry.cpp
-        rentry.h
-        rnode.cpp
-        rnode.h
-        rtree.cpp
-        rtree.h
         skyline.cpp
         skyline.h
-        tgs.cpp
-        tgs.h
-        virtualRNode.cpp
-        virtualRNode.h
         qp_solver.h
         qp_solver_impl.h
         qhull_user.h
+        lp_user.cpp
+        lp_user.h
+        qp_solver2.cpp
+        qp_solver.h
+        case_study.cpp
+        case_study.h
+
+        rtree_lib/collection.h
+        rtree_lib/filemem.cpp
+        rtree_lib/filemem.h
+        rtree_lib/global.cpp
+        rtree_lib/global.h
+        rtree_lib/header.h
+        rtree_lib/hypercube.cpp
+        rtree_lib/hypercube.h
+        rtree_lib/mem.h
+        rtree_lib/param.cpp
+        rtree_lib/param.h
+        rtree_lib/point.cpp
+        rtree_lib/point.h
+        rtree_lib/rentry.cpp
+        rtree_lib/rentry.h
+        rtree_lib/rnode.cpp
+        rtree_lib/rnode.h
+        rtree_lib/rtree.cpp
+        rtree_lib/rtree.h
+        rtree_lib/tgs.cpp
+        rtree_lib/tgs.h
+        rtree_lib/virtualRNode.cpp
+        rtree_lib/virtualRNode.h
+
         lp_lib/bfp/bfp_LUSOL/lp_LUSOL.h
         lp_lib/bfp/bfp_LUSOL/LUSOL/lusol.h
         lp_lib/bfp/lp_BFP.h
@@ -113,16 +123,12 @@ add_executable(iPref collection.cpp
         lp_lib/lp_SOS.c
         lp_lib/lp_utils.c
         lp_lib/lp_wlp.c
-        lp_user.cpp
-        lp_user.h
-        qp_solver2.cpp
-        qp_solver.h
+
         quadProg_lib/Array.hh
         quadProg_lib/Array.cc
         quadProg_lib/QuadProg++.hh
         quadProg_lib/QuadProg++.cc
-        case_study.cpp
-        case_study.h)
+)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE osqp::osqpstatic)
 target_link_libraries(${PROJECT_NAME} PRIVATE libqhullcpp)

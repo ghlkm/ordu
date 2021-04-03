@@ -48,38 +48,16 @@ bool isFeasible(vector<vector<double>> &r1,  vector<vector<double>> &r2, vector<
         store.push_back(tmp);
         add_constraint(lp, tmp, LE, 0.0);
     }
-//    double *tmp=new double[dim+1];
-//    for (int i = 0; i <dim ; ++i) {
-//        tmp[i+1]=1.0;
-//    }
-//    store.push_back(tmp);
-//    add_constraint(lp, tmp, LE, 1.0);
     set_add_rowmode(lp, FALSE);
-//    set_presolve(lp, PRESOLVE_ROWS, 0);
-//    set_presolve(lp,
-//            PRESOLVE_LINDEP |
-//            PRESOLVE_IMPLIEDFREE|
-//            PRESOLVE_ROWDOMINATE|
-//            PRESOLVE_BOUNDS|
-//            PRESOLVE_COLS|
-//            PRESOLVE_REDUCEGCD, get_presolveloops(lp));
     set_timeout(lp, 1);
     int ret = solve(lp);
     if(ret<=1){
-//        int ccnt=get_Nrows(lp);
-//        assert(ccnt>0);
-//        vector<int> simplify(ccnt);
-//        for (int i = 1; i <=ccnt ; ++i) {
-//            simplify[i-1]=get_orig_index(lp, i)-1;
-//        }
+        // TODO there may be ways to simplify the halfspace
         vector<int> simplify(r1.size()+r2.size());
         for (int i = 1; i <=r1.size()+r2.size(); ++i) {
             simplify[i-1]=i-1;
         }
         for (int idx: simplify) {
-//            if(idx>=r1.size()+r2.size()){
-//                continue;
-//            }
             if(idx<r1.size()){
                 r1_r2.push_back(r1[idx]);
             }else{

@@ -1,29 +1,17 @@
 #ifndef _IPREF_H_
 #define _IPREF_H_
 
-#include "header.h"
-#include "rtree.h"
-#include "rnode.h"
-#include "rentry.h"
-#include "virtualRNode.h"
-#include "filemem.h"
-#include "global.h"
+#include "rtree_lib/header.h"
+#include "rtree_lib/rtree.h"
+#include "rtree_lib/rnode.h"
+#include "rtree_lib/rentry.h"
+#include "rtree_lib/virtualRNode.h"
+#include "rtree_lib/filemem.h"
+//#include "global.h"
 #include "skyline.h"
 #include "qhull_user.h"
 
 extern unordered_map<long int, RtreeNode*> ramTree;
-
-
-vector<int> computeTopK(const int dim, float* PG[], vector<int> &skyband, vector<float>& weight, int k);
-
-//compute Top-K result set
-vector<long int> computeTopK(const int dim, float* PG[], vector<long int> &skyband, vector<float>& weight, int k);
-
-// Is pj dominate pi in traditional sense
-bool IsPjdominatePi(const int dimen, float* PG[], long int pi, long int pj);
-
-// test whether pj is incomparable with pi, and pj w > pi w
-bool incomparableset(float* PG[], long int pi, long int pj, vector<float>& weight);
 
 // compute the hyperplane of incomparable record pair: pi and pj
 vector<float> computePairHP(const int dimen, float* PG[], long int pi, long int pj);
@@ -35,7 +23,7 @@ bool sortbysec(const pair<long int, float> &a, const pair<long int, float> &b);
 
 // optimized algorithm
 float computeRho(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float* PG[],
-         vector<pair<long int, float>> &interval, float radius = INFINITY);
+                 vector<pair<long int, float>> &interval, float radius = INFINITY);
 
 // unknown x baseline
 float computeRho_unknownX_basic(const int dimen, const int k, const int X, vector<float>& userpref, Rtree& a_rtree, float** PG);
@@ -153,8 +141,8 @@ public:
 
 
 int utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
-                   vector<pair<int, double>> &utk_option_ret,
-                   vector<pair<double, region*>> &utk_cones_ret);
+                  vector<pair<int, double>> &utk_option_ret,
+                  vector<pair<double, region*>> &utk_cones_ret);
 
 vector<vector<double>> points_to_halfspace(vector<vector<double>> &points);
 

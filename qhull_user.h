@@ -131,10 +131,8 @@ public:
             }else{ // is a vertex
                 vector<vector<double>> cone;
                 for (int j = 0; j < pt_neif[i].size(); ++j) {
-//                    assert(pt_neif[i][j]<facets_norms.size() && pt_neif[i][j]>=0);
                     cone.push_back(facets_norms[pt_neif[i][j]]);
                 }
-//                assert(pd_ids[i]>=0 && pd_ids[i]<=objCnt);
                 ret[pd_ids[i]]=cone;
             }
         }

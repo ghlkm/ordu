@@ -7,15 +7,6 @@
 #include <cstddef>
 #include <iostream>
 using namespace std;
-//template<typename T>
-//vector<T> operator+(const vector<T> &v1, const vector<T> &v2) {
-//    assert(v1.size() == v2.size());
-//    vector<T> ret(v1);
-//    for (int i = 0; i < ret.size(); ++i) {
-//        ret[i] += v2[i];
-//    }
-//    return ret;
-//}
 
 template<typename FLOAT1, typename FLOAT2>
 vector<FLOAT1> operator+(const vector<FLOAT1> &v1, const vector<FLOAT2> &v2) {
