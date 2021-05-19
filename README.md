@@ -1,5 +1,7 @@
 # iPref
 
+The code of this project is cleaning
+
 Before running this code:
 
 Step1:
@@ -18,13 +20,13 @@ Installing Qhull with CMake 2.6 or later
   See CMakeLists.txt for examples and further build instructions
 
   To build Qhull, static libraries, shared library, and C++ interface
-  - Download and extract Qhull (either GitHub, .tgz file, or .zip file)
-  - cd build
+  - git clone https://github.com/qhull/qhull.git
+  - cd qhull/build
   - cmake --help  # List build generators
-  - make -G "<generator>" .. && cmake ..  
-  - cmake ..
-  - make
-  - make install
+  - cmake -G "<generator>" ..   
+  - cmake --build .
+  - sudo cmake --build . --target install
+
 
   The ".." is important.  It refers to the parent directory (i.e., qhull/)
 

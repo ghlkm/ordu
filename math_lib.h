@@ -67,7 +67,7 @@ bool v2_r_dominate_v1(const V &v1, const V &v2, const V &w, const VV &r_domain_v
 
 template<typename ITER>
 double sum(const ITER &begin, const ITER &end);
-
+// TODO the top region represent: {top-1 > top-2 > ... > top-k > others
 
 template<typename VF, typename VI, typename VV, typename FLOAT>
 bool isR_skyband(const VV &PG, const VI&vs, const VF &opt, const VF &w, const FLOAT &rho, int k);

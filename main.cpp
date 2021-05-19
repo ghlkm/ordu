@@ -14,7 +14,6 @@
 #include "qp_solver.h"
 #include "math_lib.h"
 #include "case_study.h"
-#include "math_lib.h"
 
 // gobal variables
 vector<vector<float>> HalfSpaces; // halfspace 
@@ -42,10 +41,10 @@ int main(const int argc, const char** argv)
         return -1;
     }
 //    product file format:
-//      <id1 w_1,1 w_1,2 w_1,3 ... w_1,d w_1,d+1 w_1,d+2 w_1,d+3 ... w_1,d+d>
-//      <id2 w_2,1 w_2,2 w_2,3 ... w_2,d w_2,d+1 w_2,d+2 w_2,d+3 ... w_2,d+d>
+//      <id1  w_1,1  w_1,2  w_1,3  ...  w_1,d  w_1,d+1  w_1,d+2  w_1,d+3  ...  w_1,d+d>
+//      <id2  w_2,1  w_2,2  w_2,3  ...  w_2,d  w_2,d+1  w_2,d+2  w_2,d+3  ...  w_2,d+d>
 //      ...
-//      <idn w_n,1 w_n,2 w_n,3 ... w_n,d w_n,d+1 w_n,d+2 w_n,d+3 ... w_n,d+d>
+//      <idn  w_n,1  w_n,2  w_n,3  ...  w_n,d  w_n,d+1  w_n,d+2  w_n,d+3  ...  w_n,d+d>
 
 //    user file format:
 //      <w_11 w_12 w_13 ... w_1d>
@@ -56,13 +55,14 @@ int main(const int argc, const char** argv)
     const int k = atoi(Param::read(argc, argv, "-k", ""));
     int dim = atoi(Param::read(argc, argv, "-d", ""));
     const char* datafile = Param::read(argc, argv, "-f", "");  // option file name
+    // index file for rtree
     const char* indexfile = Param::read(argc, argv, "-i", "");
-    const int m = atoi(Param::read(argc, argv, "-m", "")); // TODO change its name to m
+    const int m = atoi(Param::read(argc, argv, "-m", ""));
     const char* methodName = Param::read(argc, argv, "-mt", "");
     int w_num = atoi(Param::read(argc, argv, "-w", "")); // the number of tested user weights
-    int n=atoi(Param::read(argc, argv, "-n", "")); //  TODO discard
+    int n=atoi(Param::read(argc, argv, "-n", "")); //  specific load how many options
 
-    const char *w_file = Param::read(argc, argv, "-W", "");
+    const char *w_file = Param::read(argc, argv, "-W", "");// user preference file
 
     vector<vector<float>> ws(w_num*3, vector<float>(dim));
     vector<int> ks(w_num*3);

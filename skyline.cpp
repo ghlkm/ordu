@@ -1,8 +1,5 @@
 #include "skyline.h"
 
-extern vector<vector<float>> HalfSpaces;
-extern unordered_map<long int, long int> RecordIDtoHalfPlaneID;
-extern double totalIO;
 extern unordered_map<long int, RtreeNode*> ramTree;
 
 float minDist(float p1[], float p2[], int dimen)

@@ -84,9 +84,6 @@ inline void qp_solver::init_all(const vector<FLOAT>& w, const vector<FLOAT>& h_i
 
 }
 
-
-
-
 template<typename INT>
 qp_solver::qp_solver(INT dim){
     vector<c_float> h_ij(dim);
