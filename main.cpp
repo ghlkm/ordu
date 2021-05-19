@@ -14,7 +14,11 @@
 #include "qp_solver.h"
 #include "math_lib.h"
 #include "case_study.h"
-
+extern double ord_m_t;
+extern double rho_star_t;
+extern double rskyband_t;
+extern double ch_1_t;
+extern double rec_oru_t;
 // gobal variables
 vector<vector<float>> HalfSpaces; // halfspace 
 unordered_map<long int, long int> RecordIDtoHalfPlaneID;  //  record ID to halfplane ID
@@ -855,5 +859,68 @@ int main(const int argc, const char** argv)
 //    }
 //    myfile<<endl;
 //    myfile.close();
+    if (strcmp(methodName, "CS5") == 0) // ORU non order sensitive efficient
+    {
+        at = clock();
+        auto begin = chrono::steady_clock::now();
+        vector<double> avg_time(m);
+        vector<float> avg_radius(m, 0.0);
+        for (int wi = 0; wi < w_num; wi++)
+        {
+            auto w_begin = chrono::steady_clock::now();
+            int k=ks[wi];
+            // weight vector for testing, we should remove the redundant one
+            vector<float> w(ws[wi].begin(), ws[wi].end());
+            cout << "Testing w: ";
+            for (int di = 0; di < dim-1; di++)
+            {
+                cout << w[di] << ", ";
+            }
+            cout <<w.back()<< endl;
+            vector<pair<int, double>> utk_option_ret;
+            vector<pair<double, region*>> utk_cones_ret;
+            non_order_utk_efficient(PointSet, dim, w, rtree, m, k, utk_option_ret,utk_cones_ret);
+            avg_rr_cnt+=utk_cones_ret.size();
+            cout<<"ret size: "<<utk_option_ret.size()<<"\n";
+            for (int i = 0; i < avg_radius.size(); ++i) {
+                if(i<utk_option_ret.size()){
+                    avg_radius[i]+=utk_option_ret[i].second;
+                }else{
+                    avg_radius[i]+=1000000;
+                }
+            }
+            for (float radius:avg_radius) {
+                cout<<radius/(wi+1)<<endl;
+            }
+            double rho = utk_option_ret.back().second;
+            for (pair<double, region*> &tmp: utk_cones_ret) {
+                delete(tmp.second);
+            }
+            cout << "The inflection radius is: " << rho << endl;
+        }
+
+        ad = clock();
+        cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
+        cout << "Total generated regions: " << avg_rt_cnt/w_num<<endl;
+        cout << "Total return regions: " << avg_rr_cnt/w_num<<endl;
+        for (float radius:avg_radius) {
+            cout<<radius/w_num<<endl;
+        }
+        auto now = chrono::steady_clock::now();
+        chrono::duration<double> elapsed_seconds= now-begin;
+        cout<<elapsed_seconds.count();
+
+        cout<<"output time stat:\n";
+        rec_oru_t-=ch_1_t;
+        ch_1_t-=rskyband_t;
+        rskyband_t-=rho_star_t;
+        rho_star_t-=ord_m_t;
+        cout<<ord_m_t/w_num<<endl;
+        cout<<rho_star_t/w_num<<endl;
+        cout<<rskyband_t/w_num<<endl;
+        cout<<ch_1_t/w_num<<endl;
+        cout<<rec_oru_t/w_num<<endl;
+
+    }
     return 0;
 }
