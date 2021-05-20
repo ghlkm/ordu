@@ -879,7 +879,7 @@ int main(const int argc, const char** argv)
             cout <<w.back()<< endl;
             vector<pair<int, double>> utk_option_ret;
             vector<pair<double, region*>> utk_cones_ret;
-            non_order_utk_efficient(PointSet, dim, w, rtree, m, k, utk_option_ret,utk_cones_ret);
+            non_order_utk_efficient(PointSet, objCnt, dim, w, rtree, m, k, utk_option_ret,utk_cones_ret);
             avg_rr_cnt+=utk_cones_ret.size();
             cout<<"ret size: "<<utk_option_ret.size()<<"\n";
             for (int i = 0; i < avg_radius.size(); ++i) {

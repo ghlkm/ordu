@@ -3563,7 +3563,7 @@ vector<pair<int, double>> non_order_sensitive_ORU(int dim, float **PointSet, vec
     return retp;
 }
 
-int non_order_utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
+int non_order_utk_efficient(float **PointSet, int pt_cnt, int dim, vector<float> &w, Rtree* rtree, int X, int k,
                             vector<pair<int, double>> &utk_option_ret,
                             vector<pair<double, region*>> &utk_cones_ret){
 
@@ -3585,6 +3585,15 @@ int non_order_utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* 
 
 
     // 1. begin: fetch 1-skyband with m options
+    if(X<=k){
+        vector<int> input(pt_cnt);
+        iota(input.begin(), input.end(), 1);
+        vector<int> ret=computeTopK(dim, PointSet, input, w, k);
+        for(int i:ret){
+            utk_option_ret.emplace_back(i, 0.0);
+        }
+        return utk_option_ret.size();
+    }
     unknown_x_efficient get_next_obj(dim, 1, w, *rtree, PointSet);
     pair<int, float> next={-1, INFINITY};
     cout<< "begin fetch CH1"<<endl;
@@ -3662,7 +3671,7 @@ int non_order_utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* 
             maxc*=2;
         }
     }
-    while(CH_1_X_opt.size() != X){ // while(CH_1.size<X)
+    while(CH_1_X_opt.size() != X && minc < maxc){ // while(CH_1.size<X)
         midc=(maxc+minc)/2;
         if(get_next_obj.interval.size()<=midc){
             while(get_next_obj.interval.size()<midc){

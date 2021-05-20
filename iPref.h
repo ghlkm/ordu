@@ -158,7 +158,7 @@ int utk_efficient3(float **PointSet, int dim, vector<float> &w, Rtree* rtree, in
                    vector<pair<int, double>> &utk_option_ret,
                    vector<pair<double, region*>> &utk_cones_ret);
 
-int non_order_utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,
+int non_order_utk_efficient(float **PointSet, int pt_cnt, int dim, vector<float> &w, Rtree* rtree, int X, int k,
                             vector<pair<int, double>> &utk_option_ret,
                             vector<pair<double, region*>> &utk_cones_ret);
 #endif
