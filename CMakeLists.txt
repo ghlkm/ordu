@@ -19,6 +19,7 @@ set_property(TARGET libqhullcpp PROPERTY IMPORTED_LOCATION /usr/local/lib/${CMAK
 set_property(TARGET libqhullcpp PROPERTY INTERFACE_LINK_LIBRARIES libqhullstatic_r)
 add_dependencies(libqhullcpp qhull)
 
+### please see how to install osqp in README.md and change the path of qhull based on your machine
 ### add osqp
 find_package(osqp REQUIRED)
 
@@ -35,7 +36,7 @@ include_directories(${CMAKE_SOURCE_DIR}/lp_lib)
 
 include_directories(.)
 
-add_executable(iPref rtree_lib/collection.cpp
+add_executable(iPref
         iPref.cpp
         iPref.h
         main.cpp
@@ -51,6 +52,7 @@ add_executable(iPref rtree_lib/collection.cpp
         case_study.cpp
         case_study.h
 
+        rtree_lib/collection.cpp
         rtree_lib/collection.h
         rtree_lib/filemem.cpp
         rtree_lib/filemem.h

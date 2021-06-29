@@ -42,11 +42,6 @@ float computeDis(const vector<float> &tmpHS, const vector<float> &userpref)
     return ret;
 }
 
-bool sortbysec(const pair<long int, float> &a, const pair<long int, float> &b)
-{
-    return (a.second < b.second);
-}
-
 float computeradius(const int k, const int dim, long int pi, vector<float>& userpref, vector<long int>& incompSet, float* PG[], float rho){
     multiset<float> radiusSKI;
     float tmpDis;
@@ -128,52 +123,43 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
     pair<float, int> candidateOpt;
 
     RtreeNode* node;
-    multimap<float, int, greater<float>> heap;
-    multimap<float, int, greater<float>> candidateRet;
+    multimap<float, int, greater<>> heap;
+    multimap<float, int, greater<>> candidateRet;
 
-    float pt[MAXDIMEN];
+    float pt[dimen];
     int pageID;
     float tmpScore; // compute the score of option or mbr e w.r.t. userpref
     float tmpRadius; // the inflection radius of point Pi.
 
     heap.emplace(INFINITY, a_rtree.m_memory.m_rootPageID);
 
-    while (!heap.empty())
-    {
+    while (!heap.empty()){
         tmpScore = heap.begin()->first;
         pageID = heap.begin()->second;
         heap.erase(heap.begin());
-        if (pageID > MAXPAGEID)  // option processing
-        {
-            if (interval.size() < k)  // Phase I
-            {
+        if (pageID > MAXPAGEID){  // option processing
+            if (interval.size() < k){  // Phase I
                 interval.emplace_back(pageID - MAXPAGEID, 0);
                 incompSet.push_back(pageID - MAXPAGEID);
             }
-            else
-            {
-                if (candidateRet.size() < X - k)  // Phase II
-                {
+            else{
+                if (candidateRet.size() < X - k){  // Phase II
                     tmpRadius = computeradius(k, dimen, pageID - MAXPAGEID, userpref, incompSet, PG, radius);
                     if(tmpRadius!=INFINITY){
                         candidateRet.emplace(tmpRadius, pageID-MAXPAGEID);
-                        if(candidateRet.size()==X-k)
-                        {
+                        if(candidateRet.size()==X-k){
                             radius = min(radius, candidateRet.begin()->first);
                         }
                     }
                 }
-                else if(X<=k)
-                {
+                else if(X<=k){
                     assert(X==k);// if fails there is a problem in data
                     radius=0;
                     break;
                 }
-                else   // Phase III
-                {
+                else{   // Phase III
                     tmpRadius = computeradius(k, dimen, pageID - MAXPAGEID, userpref, incompSet, PG, candidateRet.begin()->first);
-                    if (tmpRadius < candidateRet.begin()->first)
-                    {
+                    if (tmpRadius < candidateRet.begin()->first){
                         candidateRet.emplace(tmpRadius, pageID - MAXPAGEID);
                         candidateRet.erase(candidateRet.begin());
                         candidateOpt = *candidateRet.begin();
@@ -187,58 +173,41 @@ float computeRho(const int dimen, const int k, const int X, vector<float>& userp
 //			incompSet.push_back(pageID - MAXPAGEID);
 
         }
-        else // internal and leaf nodes processing
-        {
+        else{ // internal and leaf nodes processing
             node = ramTree[pageID];
-            if (node->isLeaf())
-            {
-                for (int i = 0; i < node->m_usedspace; i++)
-                {
+            if (node->isLeaf()){
+                for (int i = 0; i < node->m_usedspace; i++){
                     tmpScore = 0;
-                    for (int j = 0; j < dimen; j++)
-                    {
+                    for (int j = 0; j < dimen; j++){
                         pt[j] = node->m_entry[i]->m_hc.getCenter()[j];
                         tmpScore += pt[j] * userpref[j];
                     }
-                    Point a_pt(dimen, pt);
-                    if (radius == INFINITY)
-                    {
-                        if (!dominatedByK(dimen, pt, incompSet, PG, k))
-                        {
+                    if (radius == INFINITY){
+                        if (!dominatedByK(dimen, pt, incompSet, PG, k)){
                             heap.emplace(tmpScore, node->m_entry[i]->m_id + MAXPAGEID);
                         }
                     }
-                    else
-                    {
-                        if (!r_dominatedByK(dimen, pt, radius, userpref, incompSet, PG, k))
-                        {
+                    else{
+                        if (!r_dominatedByK(dimen, pt, radius, userpref, incompSet, PG, k)){
                             heap.emplace(tmpScore, node->m_entry[i]->m_id + MAXPAGEID);
                         }
                     }
                 }
             }
-            else
-            {
-                for (int i = 0; i < node->m_usedspace; i++)
-                {
+            else{
+                for (int i = 0; i < node->m_usedspace; i++){
                     tmpScore = 0;
-                    for (int j = 0; j < dimen; j++)
-                    {
+                    for (int j = 0; j < dimen; j++){
                         pt[j] = node->m_entry[i]->m_hc.getUpper()[j];
                         tmpScore += pt[j] * userpref[j];
                     }
-                    Point a_pt(dimen, pt);
-                    if (radius == INFINITY)
-                    {
-                        if (!dominatedByK(dimen, pt, incompSet, PG, k))
-                        {
+                    if (radius == INFINITY){
+                        if (!dominatedByK(dimen, pt, incompSet, PG, k)){
                             heap.emplace(tmpScore, node->m_entry[i]->m_id);
                         }
                     }
-                    else
-                    {
-                        if (!r_dominatedByK(dimen, pt, radius, userpref, incompSet, PG, k))
-                        {
+                    else{
+                        if (!r_dominatedByK(dimen, pt, radius, userpref, incompSet, PG, k)){
                             heap.emplace(tmpScore, node->m_entry[i]->m_id);
                         }
                     }

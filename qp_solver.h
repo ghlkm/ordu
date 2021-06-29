@@ -208,7 +208,7 @@ public:
         if(flag!=0){
             ret= INFINITY;
         }
-        ret=work->info->obj_val;
+        ret=work->info->obj_val+w_L2;
         ret>=0?sqrt(ret):0;
     }
 

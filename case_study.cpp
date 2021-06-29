@@ -123,6 +123,6 @@ vector<int> OSS_skyline(int objCnt, int r, Rtree*rtree, float **PointSet, int di
             max_tdo=cur;
             best_cb=one_cb;
         }
-    } while (std::prev_permutation(v.begin(), v.end()));
+    } while (std::prev_permutation(v.begin(), v.end())); // forward next permutation
     return best_cb;
 }

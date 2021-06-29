@@ -6,6 +6,7 @@ void helpmsg(const char* pgm)
 	cout << "> " << pgm << " ";
 	cout << "-d 2 -f raw_data.txt -i index_file.idx -q query_data.txt -k 0.1 -m CTA" << endl;
 	cout << "explanations:" << endl;
+
 	cout << "-d: data dimensionality, e.g. 2" << endl;
 	cout << "-f: a tab delimited file, format:" << endl;
 	cout << "    id xmin ymin [zmin] xmax ymax [zmax]" << endl;

@@ -20,14 +20,12 @@ extern double rskyband_t;
 extern double ch_1_t;
 extern double rec_oru_t;
 // gobal variables
-vector<vector<float>> HalfSpaces; // halfspace 
-unordered_map<long int, long int> RecordIDtoHalfPlaneID;  //  record ID to halfplane ID
+
 unordered_map<long int, RtreeNode*> ramTree; // load Rtree to main-memory
 qp_solver qp;  //qp solver use for calculate dominate radius
 vector<vector<c_float>> g_r_domain_vec; // use for r-dominate testing
 
 int objCnt = 0; // # of data objects
-double totalSpaceCost = 0.0; // space cost (MB)
 clock_t at, ad;
 
 
@@ -65,53 +63,39 @@ int main(const int argc, const char** argv)
     const char* methodName = Param::read(argc, argv, "-mt", "");
     int w_num = atoi(Param::read(argc, argv, "-w", "")); // the number of tested user weights
     int n=atoi(Param::read(argc, argv, "-n", "")); //  specific load how many options
-
     const char *w_file = Param::read(argc, argv, "-W", "");// user preference file
 
-    vector<vector<float>> ws(w_num*3, vector<float>(dim));
-    vector<int> ks(w_num*3);
+    // read user preference file
+    vector<vector<float>> ws(w_num, vector<float>(dim));
     fstream fpdata;
     fpdata.open(w_file, ios::in);
     for (int i = 0; i < ws.size(); ++i) {
-        ks[i]=k;
         for (int j = 0; j < ws[i].size(); ++j) {
             fpdata >> ws[i][j];
         }
     }
-    fpdata.close(); // in case of memory leaking
+    fpdata.close();
 
-
-    int resultSize = 0;
-    // data loading
+    // read option file
     cout << "Load data points from file" << endl;
-    float** PointSet = new float*[MAXPTS + 1];
-    RtreeNodeEntry** p = new RtreeNodeEntry*[MAXPTS];
+    float** PointSet = new float*[n + 1];
+    RtreeNodeEntry** p = new RtreeNodeEntry*[n];
     fpdata.open(datafile, ios::in);
-
-    while (n--)
-    {
-        int id;
-        float* cl = new float[dim];
-        float* cu = new float[dim];
+    int id;
+    while (n--){
         fpdata >> id;
         if (fpdata.eof())
             break;
 
         PointSet[objCnt + 1] = new float[2 * dim];
-
-        for (int d = 0; d < dim; d++)
-        {
-            fpdata >> cl[d];
-            PointSet[objCnt + 1][d] = cl[d];
+        for (int d = 0; d < dim; d++){
+            fpdata >> PointSet[objCnt + 1][d];
+        }
+        for (int d = 0; d < dim; d++){
+            fpdata >> PointSet[objCnt + 1][d + dim];
         }
 
-        for (int d = 0; d < dim; d++)
-        {
-            fpdata >> cu[d];
-            PointSet[objCnt + 1][d + dim] = cu[d];
-        }
-
-        Hypercube hc(dim, cl, cu);
+        Hypercube hc(dim, PointSet[objCnt + 1], &PointSet[objCnt + 1][dim]);
         p[objCnt++] = new RtreeNodeEntry(id, hc);
 
         //log information
@@ -120,10 +104,8 @@ int main(const int argc, const char** argv)
         if (objCnt % 10000 == 0)
             cout << objCnt << " objects loaded" << endl;
     }
-
-    double rawSize = dataSize(objCnt, dim);
-    cout << "Total number of objects: " << objCnt << endl;
-    totalSpaceCost += rawSize;
+    fpdata.close();
+    cout << "Total number of options: " << objCnt << endl;
 
     // build rtree
     cout << "Bulkloading R-tree..." << endl;
@@ -131,21 +113,17 @@ int main(const int argc, const char** argv)
     FileMemory mem(PAGESIZE, indexfile, RtreeNodeEntry::fromMem, true);
     Rtree* rtree = TGS::bulkload(mem, dim, maxChild, maxChild, (int)maxChild*0.3, (int)maxChild*0.3, p, objCnt, false);
     cout << "[Rtree build done]" << endl;
-
     // in-memory rtree
     cout << "cache R-tree into memory" << endl;
     rtreeRAM(*rtree, ramTree);
-    totalSpaceCost += ramTree.size()*4096.00 / MB;
-    cout << "Total R-tree size:" << totalSpaceCost << "MB" << endl;
-
     // aggregate rtree
     aggregateRecords(*rtree);
     cout << "[Aggregate Rtree done]" << endl;
+
     // init qp solver
     qp=qp_solver(dim);
     g_r_domain_vec=gen_r_domain_vec(dim);
-    if (strcmp(methodName, "BB") == 0)
-    {
+    if (strcmp(methodName, "ORD") == 0){
         // ORD knownX baseline algorithm
         // (1) compute k-skyband set SK
         // (2) for each pi, suppose T_pi is the incomparable set (a) p_j is incomparable with p_i in SK, (2) p_j w > p_i w
@@ -153,69 +131,45 @@ int main(const int argc, const char** argv)
         // (4) compute the inflection point of pi: the k-th laregst value in step (3), denotes as inf_pi
         // (5) pi's rksykband interval: inf_pi to infinity
         // (6) the radius rho is the T-th minimum value in all pi in SK
-        int k=ks[0];
-        clock_t bat = clock();
         vector<long int> skyband;
-        auto kbegin = chrono::steady_clock::now();
         kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
-        cout<< skyband.size() << endl;
-        auto kend = chrono::steady_clock::now();
-        at=clock();
+        cout<< "kskyband size"<< skyband.size() << endl;
         auto begin = chrono::steady_clock::now();
-
-        clock_t bad = clock();
-        cout << "Total time cost: " << fixed << (bad - bat) * 1.0 / (CLOCKS_PER_SEC) << " SEC " << endl;
-        for (int wi = 0; wi < w_num; wi++)
-        {
-            // weight vector for testing, we should remove the redundant one
-            auto wbegin = chrono::steady_clock::now();
-
+        for (int wi = 0; wi < w_num; wi++){
             vector<float> w(ws[wi].begin(), ws[wi].end());
-
-            cout << "Testing w: ";
-            for (int di = 0; di < dim-1; di++)
-            {
-                cout << w[di] << ", ";
-            }
-            cout<< w.back() <<endl;
-            cout << "Testing k: " << k <<endl;
+            cout << "Testing w: "<<ws[wi]<<endl;
             //k-skyband
             vector<long int> topKRet = computeTopK(dim, PointSet, skyband, w, k);
-            assert(topKRet.size() == k);
             vector<pair<long int, float>> interval;
-            for (int i = 0; i < topKRet.size(); i++) {
-                interval.emplace_back(topKRet[i], 0);
+            for (long & i : topKRet) {
+                interval.emplace_back(i, 0);
             }
 
-            for (int ski = 0; ski < skyband.size(); ski++)
-            {
-                if (find(topKRet.begin(), topKRet.end(), skyband[ski]) != topKRet.end())
-                {
+            for (int ski = 0; ski < skyband.size(); ski++){
+                if (find(topKRet.begin(), topKRet.end(), skyband[ski]) != topKRet.end()){// if it is one of topk
                     continue;
                 }
                 multiset<float> radiusSKI;
                 vector<long int> incompset;
                 vector<long int> dominatorSet;
                 int dominated_cnt=0;
-                for (int pj = 0; pj < skyband.size(); pj++)
-                {
-                    if (ski == pj)
+                for (int pj = 0; pj < skyband.size(); pj++){
+                    if (ski == pj) {
                         continue;
-                    if(v1_dominate_v2(PointSet[skyband[pj]], PointSet[skyband[ski]], dim))
-                    {
+                    }
+                    if(v1_dominate_v2(PointSet[skyband[pj]], PointSet[skyband[ski]], dim)){
                         radiusSKI.insert(INFINITY);
                         dominated_cnt++;
-                        if(dominated_cnt>=k)
+                        if(dominated_cnt>=k) {
                             break;
+                        }
                     }
                     else if(!v1_dominate_v2(PointSet[skyband[ski]], PointSet[skyband[pj]], dim)
-                    && dot(w, PointSet[skyband[ski]])< dot(w, PointSet[skyband[pj]]))// step (2)
-                    {
+                            && dot(w, PointSet[skyband[ski]])< dot(w, PointSet[skyband[pj]])){// step (2)
                         incompset.push_back(skyband[pj]);
                     }
                 }
 
-                // here we need a function to compute the inflection radius of option pi
                 if(dominated_cnt>=k){
                     interval.emplace_back(skyband[ski], INFINITY);
                     continue;
@@ -243,18 +197,18 @@ int main(const int argc, const char** argv)
                     interval.emplace_back(skyband[ski], *radiusSKI.begin());
                 }
             }
-            sort(interval.begin(), interval.end(), sortbysec);
+            sort(interval.begin(), interval.end(),
+                    [](const pair<long int, float> &a, const pair<long int, float> &b){
+                        return a.second < b.second;
+            });
             for (auto i = 0; i < k; ++i) {
                 interval[i].first = topKRet[i]; // although top-k is the same, we guarantee the correct top-k order
             }
             cout << "The inflection radius is: " << interval[m].second << endl;
-            auto now = chrono::steady_clock::now();
-            chrono::duration<double> elapsed_seconds= (now-wbegin)+(kend-kbegin);
-            cout << "Total time cost: " << elapsed_seconds.count()<< " SEC " << endl;
         }
         ad = clock();
         auto now = chrono::steady_clock::now();
-        chrono::duration<double> elapsed_seconds= (now-begin)/w_num+(kend-kbegin);
+        chrono::duration<double> elapsed_seconds= (now-begin)/w_num;
         cout << "Total time cost: " << elapsed_seconds.count()<< " SEC " << endl;
     }
     if (strcmp(methodName, "OA") == 0)
@@ -268,31 +222,13 @@ int main(const int argc, const char** argv)
         // (6) fetching terminates none of options can be the r-skyband
         // (7) append Q to T, this is the final result.
         vector<pair<long int, float>> interval;
-        at = clock();
         auto begin = chrono::steady_clock::now();
-        for (int wi = 0; wi < w_num; wi++)
-        {
-            clock_t wat = clock();
-            auto wbegin = chrono::steady_clock::now();
-
-            int k=ks[wi];
+        for (int wi = 0; wi < w_num; wi++){
             // weight vector for testing, we should remove the redundant one
-            vector<float> w(ws[wi].begin(), ws[wi].end());
-
-            cout << "Testing w: ";
-            for (int di = 0; di < dim-1; di++)
-            {
-                cout << w[di] << ", ";
-            }
-            cout <<w.back()<< endl;
-            float rho = computeRho(dim, k, m, w, *rtree, PointSet, interval);
+            cout << "Testing w: "<<ws[wi]<<endl;
+            float rho = computeRho(dim, k, m, ws[wi], *rtree, PointSet, interval);
             interval.clear();
             cout << "The inflection radius is: " << rho << endl;
-            ad = clock();
-            cout << "Total time cost: " << fixed << (ad - wat) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << "\n";
-            auto now = chrono::steady_clock::now();
-            chrono::duration<double> elapsed_seconds= now-wbegin;
-            cout << elapsed_seconds.count() <<endl;
         }
         ad = clock();
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << "\n";
@@ -315,7 +251,6 @@ int main(const int argc, const char** argv)
         at = clock();
         for (int wi = 0; wi < w_num; wi++)
         {
-            int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
             vector<float> w(ws[wi].begin(), ws[wi].end());
             cout << "Testing w: ";
@@ -331,7 +266,7 @@ int main(const int argc, const char** argv)
         ad = clock();
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
     }
-    if (strcmp(methodName, "UB_GN") == 0) // ORD unknown m baseline get_next version
+    if (strcmp(methodName, "ORD_GN") == 0) // ORD unknown m baseline get_next version
     {
         at = clock();
         auto begin = chrono::steady_clock::now();
@@ -340,7 +275,6 @@ int main(const int argc, const char** argv)
         for (int wi = 0; wi < w_num; wi++)
         {
             auto w_begin = chrono::steady_clock::now();
-            int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
             vector<float> w(ws[wi].begin(), ws[wi].end());
             cout << "Testing w: ";
@@ -378,12 +312,11 @@ int main(const int argc, const char** argv)
     // incremental version, without known m
     // We do not have exact m, we need tell the user the radius rho and its corresponding T
     // It is similar to optimized algorithm, however, it computes incrementally, from rho = 0 to infinity, the size T is from k to k-skyband.
-    if (strcmp(methodName, "UA") == 0) // unknown m efficient
+    if (strcmp(methodName, "ORD_OA") == 0) // unknown m efficient
     {
         at = clock();
         for (int wi = 0; wi < w_num; wi++)
         {
-            int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
             vector<float> w(ws[wi].begin(), ws[wi].end());
             cout << "Testing w: ";
@@ -399,7 +332,7 @@ int main(const int argc, const char** argv)
         ad = clock();
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
     }
-    if (strcmp(methodName, "UA_GN") == 0) // unknown m efficient get_next version
+    if (strcmp(methodName, "ORD_OA_GN") == 0) // unknown m efficient get_next version
     {
         vector<double> grank(m);
 
@@ -410,7 +343,6 @@ int main(const int argc, const char** argv)
         for (int wi = 0; wi < w_num; wi++)
         {
             auto w_begin = chrono::steady_clock::now();
-            int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
             vector<float> w(ws[wi].begin(), ws[wi].end());
 
@@ -443,7 +375,7 @@ int main(const int argc, const char** argv)
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
     }
-    if (strcmp(methodName, "UTK_BB") == 0) // ORU baseline
+    if (strcmp(methodName, "ORU_BB") == 0) // ORU baseline
     {
         at = clock();
         auto begin = chrono::steady_clock::now();
@@ -452,7 +384,6 @@ int main(const int argc, const char** argv)
         for (int wi = 0; wi < w_num; wi++)
         {
             auto w_begin = chrono::steady_clock::now();
-            int k=ks[wi];
             vector<float> w(ws[wi].begin(), ws[wi].end());
             cout << "Testing w: ";
             for (int di = 0; di < dim-1; di++)
@@ -473,9 +404,7 @@ int main(const int argc, const char** argv)
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
     }
-    double avg_rt_cnt=0;
-    double avg_rr_cnt=0;
-    if (strcmp(methodName, "UTK_OA") == 0) // ORU efficient
+    if (strcmp(methodName, "ORU_OA") == 0) // ORU efficient
     {
         at = clock();
         auto begin = chrono::steady_clock::now();
@@ -484,7 +413,6 @@ int main(const int argc, const char** argv)
         for (int wi = 0; wi < w_num; wi++)
         {
             auto w_begin = chrono::steady_clock::now();
-            int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
             vector<float> w(ws[wi].begin(), ws[wi].end());
             cout << "Testing w: ";
@@ -498,8 +426,6 @@ int main(const int argc, const char** argv)
             // the code commented below just for anti data
 //            int generated_r_cnt= utk_efficient_anti(PointSet, dim, w, rtree, m, k, utk_option_ret,utk_cones_ret);
             int generated_r_cnt= utk_efficient(PointSet, dim, w, rtree, m, k, utk_option_ret, utk_cones_ret);
-            avg_rt_cnt+=generated_r_cnt;
-            avg_rr_cnt+=utk_cones_ret.size();
             cout<<"ret size: "<<utk_option_ret.size()<<"\n";
             for (int i = 0; i < avg_radius.size(); ++i) {
                 if(i<utk_option_ret.size()){
@@ -520,8 +446,6 @@ int main(const int argc, const char** argv)
 
         ad = clock();
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
-        cout << "Total generated regions: " << avg_rt_cnt/w_num<<endl;
-        cout << "Total return regions: " << avg_rr_cnt/w_num<<endl;
         for (float radius:avg_radius) {
             cout<<radius/w_num<<endl;
         }
@@ -531,7 +455,7 @@ int main(const int argc, const char** argv)
 
         cout<<"output time stat:\n";
     }
-    if (strcmp(methodName, "UTK_OA3") == 0) // ORU efficient
+    if (strcmp(methodName, "ORU_OA3") == 0) // ORU efficient
     {
         at = clock();
         auto begin = chrono::steady_clock::now();
@@ -540,7 +464,6 @@ int main(const int argc, const char** argv)
         for (int wi = 0; wi < w_num; wi++)
         {
             auto w_begin = chrono::steady_clock::now();
-            int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
             vector<float> w(ws[wi].begin(), ws[wi].end());
             cout << "Testing w: ";
@@ -554,8 +477,6 @@ int main(const int argc, const char** argv)
             // the code commented below just for anti data
 //            int generated_r_cnt= utk_efficient_anti(PointSet, dim, w, rtree, m, k, utk_option_ret,utk_cones_ret);
             int generated_r_cnt= utk_efficient3(PointSet, dim, w, rtree, m, k, utk_option_ret, utk_cones_ret);
-            avg_rt_cnt+=generated_r_cnt;
-            avg_rr_cnt+=utk_cones_ret.size();
             cout<<"ret size: "<<utk_option_ret.size()<<"\n";
             for (int i = 0; i < avg_radius.size(); ++i) {
                 if(i<utk_option_ret.size()){
@@ -576,8 +497,6 @@ int main(const int argc, const char** argv)
 
         ad = clock();
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
-        cout << "Total generated regions: " << avg_rt_cnt/w_num<<endl;
-        cout << "Total return regions: " << avg_rr_cnt/w_num<<endl;
         for (float radius:avg_radius) {
             cout<<radius/w_num<<endl;
         }
@@ -592,7 +511,6 @@ int main(const int argc, const char** argv)
         for (int wi = 0; wi < w_num; wi++)
         {
             auto w_begin = chrono::steady_clock::now();
-            int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
             vector<float> w(ws[wi].begin(), ws[wi].end());
             cout << "Testing w: ";
@@ -688,8 +606,6 @@ int main(const int argc, const char** argv)
 
         ad = clock();
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
-        cout << "Total generated regions: " << avg_rt_cnt/w_num<<endl;
-        cout << "Total return regions: " << avg_rr_cnt/w_num<<endl;
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
     }
@@ -703,7 +619,6 @@ int main(const int argc, const char** argv)
         vector<double> recs; // contains recall results
         for (int wi = 0; wi < w_num; wi++)
         {
-            int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
             vector<float> w(ws[wi].begin(), ws[wi].end());
             cout << "Testing w: ";
@@ -817,7 +732,6 @@ int main(const int argc, const char** argv)
         for (int wi = 0; wi < w_num; wi++)
         {
             auto w_begin = chrono::steady_clock::now();
-            int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
             vector<float> w(ws[wi].begin(), ws[wi].end());
             cout << "Testing w: ";
@@ -845,82 +759,44 @@ int main(const int argc, const char** argv)
 
         ad = clock();
         cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
-        cout << "Total generated regions: " << avg_rt_cnt/w_num<<endl;
-        cout << "Total return regions: " << avg_rr_cnt/w_num<<endl;
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
     }
-//    ofstream myfile;
-//    myfile.open ("result_oru.txt", ios::out | ios::app | ios::binary);
-//    myfile <<fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num)<<": ";
-//    myfile << "(" << avg_rt_cnt/w_num << "," << avg_rr_cnt/w_num << ") ";
-//    for (int l = 0; l < argc; ++l) {
-//        myfile<< argv[l]<<" ";
-//    }
-//    myfile<<endl;
-//    myfile.close();
-    if (strcmp(methodName, "CS5") == 0) // ORU non order sensitive efficient
+
+    if (strcmp(methodName, "ORU_NO") == 0) // ORU non order sensitive efficient
     {
         at = clock();
         auto begin = chrono::steady_clock::now();
-        vector<double> avg_time(m);
+        vector<double> avg_time(m, 0.0);
         vector<float> avg_radius(m, 0.0);
         for (int wi = 0; wi < w_num; wi++)
         {
-            auto w_begin = chrono::steady_clock::now();
-            int k=ks[wi];
             // weight vector for testing, we should remove the redundant one
-            vector<float> w(ws[wi].begin(), ws[wi].end());
-            cout << "Testing w: ";
-            for (int di = 0; di < dim-1; di++)
-            {
-                cout << w[di] << ", ";
-            }
-            cout <<w.back()<< endl;
+            cout << "Testing w: "<< ws[wi] << endl;
             vector<pair<int, double>> utk_option_ret;
             vector<pair<double, region*>> utk_cones_ret;
-            non_order_utk_efficient(PointSet, objCnt, dim, w, rtree, m, k, utk_option_ret,utk_cones_ret);
-            avg_rr_cnt+=utk_cones_ret.size();
-            cout<<"ret size: "<<utk_option_ret.size()<<"\n";
+            non_order_utk_efficient(PointSet, objCnt, dim, ws[wi], rtree, m, k, utk_option_ret,utk_cones_ret);
             for (int i = 0; i < avg_radius.size(); ++i) {
                 if(i<utk_option_ret.size()){
-                    avg_radius[i]+=utk_option_ret[i].second;
+                    cout<<utk_option_ret[i].second<<endl;
                 }else{
-                    avg_radius[i]+=1000000;
+                    cout<<INFINITY<<endl;
                 }
             }
-            for (float radius:avg_radius) {
-                cout<<radius/(wi+1)<<endl;
-            }
             double rho = utk_option_ret.back().second;
+            cout << "The inflection radius is: " << rho << endl;
             for (pair<double, region*> &tmp: utk_cones_ret) {
                 delete(tmp.second);
             }
-            cout << "The inflection radius is: " << rho << endl;
         }
 
-        ad = clock();
-        cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
-        cout << "Total generated regions: " << avg_rt_cnt/w_num<<endl;
-        cout << "Total return regions: " << avg_rr_cnt/w_num<<endl;
         for (float radius:avg_radius) {
             cout<<radius/w_num<<endl;
         }
         auto now = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds= now-begin;
-        cout<<elapsed_seconds.count();
-
-        cout<<"output time stat:\n";
-        rec_oru_t-=ch_1_t;
-        ch_1_t-=rskyband_t;
-        rskyband_t-=rho_star_t;
-        rho_star_t-=ord_m_t;
-        cout<<ord_m_t/w_num<<endl;
-        cout<<rho_star_t/w_num<<endl;
-        cout<<rskyband_t/w_num<<endl;
-        cout<<ch_1_t/w_num<<endl;
-        cout<<rec_oru_t/w_num<<endl;
-
+        cout<<elapsed_seconds.count()<<endl;
+        cout << "Total time cost: " << fixed << elapsed_seconds.count()/w_num << " sec " << endl;
     }
     return 0;
 }
