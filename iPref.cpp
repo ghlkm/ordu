@@ -2348,6 +2348,27 @@ int topRegions_efficient3(vector<vector<double>> &parent_region, ch &ch_obj,
                 }
             }
         }
+        vector<int> topk=popped.second->get_topi();
+        for(int opt:topk){
+            auto iter=options.find(opt);
+            if(iter==options.end()) {// new option
+                options.insert(opt);
+                utk_option_ret.emplace_back(opt, popped.first);
+                cout << "radius: " << popped.first << "\n";
+                if(true){
+                    vector<double> tmp(PG[opt], PG[opt]+dim);
+                    cout<<options.size()<<": " << popped.first << ", "<<utk_cones_ret.size()<<
+                        ", "<<rcnt <<"," << ch_obj.get_neighbor_vertex(opt).size()<<" # "<< popped.second->get_topi()<<"\n";
+                }
+                auto now = chrono::steady_clock::now();
+                chrono::duration<double> elapsed_seconds= now-begin;
+                cout << "time: " << options.size() << ", " << elapsed_seconds.count()<<"\n";
+                new_option=True;
+            }
+        }
+        if(new_option){
+            popped.second->set_radius(popped.first);
+        }
         if(popped.second->top_what==k){ // a region that don't need to be partitioned
             vector<int> topk=popped.second->get_topi();
             for(int opt:topk){
