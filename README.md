@@ -43,8 +43,20 @@ Installing Qhull with CMake 2.6 or later
 
 -----------------
 
+To install osqp
+-----------------
 
+  - git clone --recursive https://github.com/oxfordcontrol/osqp
+  - cd osqp
+  - mkdir build
+  - cd build
+  - cmake -G "Unix Makefiles" .. #
+  - cmake --build .
+  - sudo cmake --build . --target install  
+-----------------
 
+  
+  
 the source code for the bounded size top-k query (ORD, ORU) problem.
 
 to run:
