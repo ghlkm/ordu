@@ -58,6 +58,8 @@ To install osqp
   
   
 the source code for the bounded size top-k query (ORD, ORU) problem.
+  
+you could also find the copy of this project in https://github.com/DBGroup-SUSTech/ordu
 
 to run:
 
