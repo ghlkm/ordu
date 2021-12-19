@@ -24,8 +24,8 @@ Installing Qhull with CMake 2.6 or later
   To build Qhull, static libraries, shared library, and C++ interface
   - git clone https://github.com/qhull/qhull.git
   - cd qhull/build
-  - cmake --help  # List build generators
-  - cmake -G "<generator>" ..   
+  - cmake --help  # List build generators, the system will tell you the next step which generator you should use 
+  - cmake -G "<generator>" ..   # e.g., "cmake -G "Unix Makefiles" .." 
   - cmake --build .
   - sudo cmake --build . --target install
 
@@ -50,17 +50,30 @@ To install osqp
   - cd osqp
   - mkdir build
   - cd build
-  - cmake -G "Unix Makefiles" .. #
+  - cmake --help  # List build generators, the system will tell you the next step which generator you should use 
+  - cmake -G "<generator>" ..   # e.g., "cmake -G "Unix Makefiles" .." 
   - cmake --build .
   - sudo cmake --build . --target install  
 -----------------
 
+
+To compile this project, ORDU
+-----------------
+  - git clone https://github.com/ghlkm/ordu.git
+  - cd ordu # go to the directory of ORDU
+  - mkdir build
+  - cd build
+  - cmake --help  # List build generators, the system will tell you the next step which generator you should use 
+  - cmake -G "<generator>" ..   # e.g., "cmake -G "Unix Makefiles" .." 
+  - cmake --build .  # it may should a lot of warnings because I set "-Wall" in CMakelists.txt
+  -   # this is an example to run 
+-----------------
   
   
 the source code for the bounded size top-k query (ORD, ORU) problem.
   
 you could also find the copy of this project in https://github.com/DBGroup-SUSTech/ordu
 
-to run:
+to run (I assume you are in the build directory of ordu you created in the last step):
 
--w 10 -k 10 -d 6 -m 90 -f ./pdt/HOUSE6D.dat -mt CS5 -W ./user/user6d200k.txt -n 2000000 -i ./idx/idx4.txt
+-w 10 -k 10 -d 6 -m 90 -f ../data/HOUSE6D.dat -mt CS5 -W ./user/user6d200k.txt -n 2000000 -i ./idx/idx4.txt
