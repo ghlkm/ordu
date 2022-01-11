@@ -112,7 +112,7 @@ Especially, "CS" is used to reproduce the case study in our paper.\
 Case Study
 -----------------
 if you are interested in reproduce the case study results we made in the paper, 
-you can refer to directory /caseStudy_reproduce 
+you can refer to directory /caseStudy_reproduce \
 <img src="./image/k2m6_ast_trb_49_51-4.png" alt="drawing" width="300"/> <img src="./image/k2m6_pts_trb_43_57-4.png" alt="drawing" width="300"/>
 
 -----------------
