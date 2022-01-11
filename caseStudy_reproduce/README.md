@@ -1,5 +1,5 @@
+<img src="../image/k2m6_ast_trb_49_51-4.png" alt="drawing" width="300"/> <img src="../image/k2m6_pts_trb_43_57-4.png" alt="drawing" width="300"/>
 
----------
 step1 run case study 
 ---------
 Go to directory /build and run case study as follow command.
@@ -34,3 +34,19 @@ replacing "ast_trb.dat" with "trb_pts.dat", and replacing "user_ast_trb.txt" wit
 ---------------
 If you want to change the label of generated figure or save figure, 
 you can modify it in draw.py easily.  
+--------------
+If you got any problem to run this project, please contact likm20202@mail.sustech.edu.cn   \
+If you are using the code of this project, please cite our paper: \
+  @inproceedings{10.1145/3448016.3457299,\
+author = {Mouratidis, Kyriakos and Li, Keming and Tang, Bo}, \
+title = {Marrying Top-k with Skyline Queries: Relaxing the Preference Input While Producing Output of Controllable Size},\
+year = {2021},\
+isbn = {9781450383431},\
+publisher = {Association for Computing Machinery},\
+doi = {10.1145/3448016.3457299},\
+booktitle = {Proceedings of the 2021 International Conference on Management of Data},\
+pages = {1317–1330},\
+numpages = {14},\
+series = {SIGMOD/PODS '21}\
+}
+
