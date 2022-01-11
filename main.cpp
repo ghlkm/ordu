@@ -26,7 +26,7 @@ qp_solver qp;  //qp solver use for calculate dominate radius
 vector<vector<c_float>> g_r_domain_vec; // use for r-dominate testing
 
 int objCnt = 0; // # of data objects
-clock_t at, ad;
+clock_t at, ad; 
 
 
 int main(const int argc, const char** argv)
@@ -123,149 +123,6 @@ int main(const int argc, const char** argv)
     // init qp solver
     qp=qp_solver(dim);
     g_r_domain_vec=gen_r_domain_vec(dim);
-    if (strcmp(methodName, "ORD") == 0){
-        // ORD knownX baseline algorithm
-        // (1) compute k-skyband set SK
-        // (2) for each pi, suppose T_pi is the incomparable set (a) p_j is incomparable with p_i in SK, (2) p_j w > p_i w
-        // (3) for each p in T_pi, compute the distance from point w to hyperplane H_{i,j} equation: d = \frac{a1 w1 +  a2 w2 + ... ad_1 wd-1+D}{\sqrt{a1^2+a2^2+ ... + ad-1^2}}
-        // (4) compute the inflection point of pi: the k-th laregst value in step (3), denotes as inf_pi
-        // (5) pi's rksykband interval: inf_pi to infinity
-        // (6) the radius rho is the T-th minimum value in all pi in SK
-        vector<long int> skyband;
-        kskyband(dim, *rtree, skyband, PointSet, k); // step (1)
-        cout<< "kskyband size"<< skyband.size() << endl;
-        auto begin = chrono::steady_clock::now();
-        for (int wi = 0; wi < w_num; wi++){
-            vector<float> w(ws[wi].begin(), ws[wi].end());
-            cout << "Testing w: "<<ws[wi]<<endl;
-            //k-skyband
-            vector<long int> topKRet = computeTopK(dim, PointSet, skyband, w, k);
-            vector<pair<long int, float>> interval;
-            for (long & i : topKRet) {
-                interval.emplace_back(i, 0);
-            }
-
-            for (int ski = 0; ski < skyband.size(); ski++){
-                if (find(topKRet.begin(), topKRet.end(), skyband[ski]) != topKRet.end()){// if it is one of topk
-                    continue;
-                }
-                multiset<float> radiusSKI;
-                vector<long int> incompset;
-                vector<long int> dominatorSet;
-                int dominated_cnt=0;
-                for (int pj = 0; pj < skyband.size(); pj++){
-                    if (ski == pj) {
-                        continue;
-                    }
-                    if(v1_dominate_v2(PointSet[skyband[pj]], PointSet[skyband[ski]], dim)){
-                        radiusSKI.insert(INFINITY);
-                        dominated_cnt++;
-                        if(dominated_cnt>=k) {
-                            break;
-                        }
-                    }
-                    else if(!v1_dominate_v2(PointSet[skyband[ski]], PointSet[skyband[pj]], dim)
-                            && dot(w, PointSet[skyband[ski]])< dot(w, PointSet[skyband[pj]])){// step (2)
-                        incompset.push_back(skyband[pj]);
-                    }
-                }
-
-                if(dominated_cnt>=k){
-                    interval.emplace_back(skyband[ski], INFINITY);
-                    continue;
-                }
-                while(radiusSKI.size()>k){
-                    radiusSKI.erase(radiusSKI.begin());
-                }
-                for (int inpi = 0; inpi < incompset.size(); inpi++)
-                {
-                    vector<float> tmpHS = computePairHP(dim, PointSet, skyband[ski], incompset[inpi]);
-                    //compute the distance from w to hyperplane.
-                    float tmpDis = computeDis(tmpHS, w);
-                    radiusSKI.insert(tmpDis);
-                    if(radiusSKI.size()>k){
-                        radiusSKI.erase(radiusSKI.begin());
-                        if(*radiusSKI.begin()==INFINITY){
-                            break;
-                        }
-                    }
-                }
-                if(*radiusSKI.begin()==INFINITY){
-                    interval.emplace_back(skyband[ski], INFINITY);
-                }else{
-                    assert(radiusSKI.size() >= k);
-                    interval.emplace_back(skyband[ski], *radiusSKI.begin());
-                }
-            }
-            sort(interval.begin(), interval.end(),
-                    [](const pair<long int, float> &a, const pair<long int, float> &b){
-                        return a.second < b.second;
-            });
-            for (auto i = 0; i < k; ++i) {
-                interval[i].first = topKRet[i]; // although top-k is the same, we guarantee the correct top-k order
-            }
-            cout << "The inflection radius is: " << interval[m].second << endl;
-        }
-        ad = clock();
-        auto now = chrono::steady_clock::now();
-        chrono::duration<double> elapsed_seconds= (now-begin)/w_num;
-        cout << "Total time cost: " << elapsed_seconds.count()<< " SEC " << endl;
-    }
-    if (strcmp(methodName, "OA") == 0)
-    {
-        // ORD knownX optimized algorithm
-        // (1) revised BBS for w, compute top-k result, store in T directly
-        // (2) for each pi (uncertain status), compute its inflection distance inf_pi, and push it into a max-heap Q (inf_pi as key)
-        // (3) keep fetching until max-heap with size m-k+1, pop the top node out, and initalize p0 = inf_ptop
-        // (4) test the rest candidates by r-dominanace, instead of BBS, thus fetching r-skyband options
-        // (5) shrinks p0 quicly, simulating a scanning from infinity to 0
-        // (6) fetching terminates none of options can be the r-skyband
-        // (7) append Q to T, this is the final result.
-        vector<pair<long int, float>> interval;
-        auto begin = chrono::steady_clock::now();
-        for (int wi = 0; wi < w_num; wi++){
-            // weight vector for testing, we should remove the redundant one
-            cout << "Testing w: "<<ws[wi]<<endl;
-            float rho = computeRho(dim, k, m, ws[wi], *rtree, PointSet, interval);
-            interval.clear();
-            cout << "The inflection radius is: " << rho << endl;
-        }
-        ad = clock();
-        cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << "\n";
-        auto now = chrono::steady_clock::now();
-        chrono::duration<double> elapsed_seconds= now-begin;
-        cout << elapsed_seconds.count()/w_num <<endl;
-    }
-    if (strcmp(methodName, "UB") == 0) // ORD unknown m basic
-    {
-        // (1) if get_next_time<=k, from BBS fetch topK
-        // (2) for each element in BBS, calculate their inflection radius and store them into heap S (so we can know whose inflection radius is smallest)
-        // (3) while the the top of S is not an option:
-        //       (a) pop and push node A out and into BBS heap
-        //       (b) if node A is an option:
-        //             not update S
-        //             marked A as fetched
-        //           else
-        //             update S to remove node
-        //           update all nodes in S such that not fetched by BBS yet (use a flag FETCH to record)
-        at = clock();
-        for (int wi = 0; wi < w_num; wi++)
-        {
-            // weight vector for testing, we should remove the redundant one
-            vector<float> w(ws[wi].begin(), ws[wi].end());
-            cout << "Testing w: ";
-            for (int di = 0; di < dim-1; di++)
-            {
-                cout << w[di] << ", ";
-            }
-            cout <<w.back()<< endl;
-
-            float rho = computeRho_unknownX_basic(dim, k, m, w, *rtree, PointSet);
-            cout << "The inflection radius is: " << rho << endl;
-        }
-        ad = clock();
-        cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
-    }
     if (strcmp(methodName, "ORD_GN") == 0) // ORD unknown m baseline get_next version
     {
         at = clock();
@@ -312,26 +169,6 @@ int main(const int argc, const char** argv)
     // incremental version, without known m
     // We do not have exact m, we need tell the user the radius rho and its corresponding T
     // It is similar to optimized algorithm, however, it computes incrementally, from rho = 0 to infinity, the size T is from k to k-skyband.
-    if (strcmp(methodName, "ORD_OA") == 0) // unknown m efficient
-    {
-        at = clock();
-        for (int wi = 0; wi < w_num; wi++)
-        {
-            // weight vector for testing, we should remove the redundant one
-            vector<float> w(ws[wi].begin(), ws[wi].end());
-            cout << "Testing w: ";
-            for (int di = 0; di < dim-1; di++)
-            {
-                cout << w[di] << ", ";
-            }
-            cout <<w.back()<< endl;
-
-            float rho = computeRho_unknownX_efficient(dim, k, m, w, *rtree, PointSet);
-            cout << "The inflection radius is: " << rho << endl;
-        }
-        ad = clock();
-        cout << "Total time cost: " << fixed << (ad - at) * 1.0 / (CLOCKS_PER_SEC*w_num) << " SEC " << endl;
-    }
     if (strcmp(methodName, "ORD_OA_GN") == 0) // unknown m efficient get_next version
     {
         vector<double> grank(m);
@@ -599,6 +436,17 @@ int main(const int argc, const char** argv)
             cout<<"ord=[\n"<<ord_topm<<"\n]\n";
             cout<<"oru=[\n"<<oru_topm<<"\n]\n";
             cout<<"skyline=[\n"<<skyline_topm<<"\n]\n";
+            ofstream myfile;
+            myfile.open ("../caseStudy_reproduce/result.txt");
+            if(!myfile.is_open()){
+                cout<<"can't open file "<<"../caseStudy_reproduce/result.txt"<<endl;
+                exit(0);
+            }
+            myfile<<"top-$m$,"<<direct_topm<<endl;
+            myfile<<"ORD,"<<ord_topm<<endl;
+            myfile<<"ORU,"<<oru_topm<<endl;
+            myfile<<"OSS skyline,"<<skyline_topm<<endl;
+            myfile.close();
             for (pair<double, region*> &tmp: utk_cones_ret) {
                 delete(tmp.second);
             }

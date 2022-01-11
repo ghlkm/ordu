@@ -10,6 +10,7 @@
 //#include "global.h"
 #include "skyline.h"
 #include "qhull_user.h"
+#include "region.h"
 
 extern unordered_map<long int, RtreeNode*> ramTree;
 
@@ -120,24 +121,6 @@ void utk_basic(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X,
 
 vector<int> get_CH_pdtid(const vector<int> &pdt_ids, Qhull &q);
 
-
-class region{
-public:
-    vector<int> topk;
-    double radius;
-    vector<vector<double>> cone;
-public:
-    region(vector<int> &topK, vector<vector<double>> &Cone){
-        topk=topK;
-        cone=Cone;
-    }
-    void setRadius(float new_r){
-        this->radius=new_r;
-    }
-    void setRadius(double new_r){
-        this->radius=new_r;
-    }
-};
 
 
 int utk_efficient(float **PointSet, int dim, vector<float> &w, Rtree* rtree, int X, int k,

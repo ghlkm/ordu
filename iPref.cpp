@@ -1434,8 +1434,6 @@ int topRegions_efficient(vector<vector<double>> &parent_region, ch &ch_obj,
         if(popped.second->topk.size()==1){
             // if it is top1, push its adjacent vertex
             const vector<int> &top1_adj=ch_obj.get_neighbor_vertex(popped.second->topk.front());
-            unordered_set<double> dss;
-            vector<double> dsv;
             for (int adj_opt:top1_adj) {
                 if(top1_calculated.find(adj_opt)!=top1_calculated.end()){
                     continue;

@@ -130,7 +130,7 @@ add_executable(iPref
         quadProg_lib/Array.cc
         quadProg_lib/QuadProg++.hh
         quadProg_lib/QuadProg++.cc
-)
+        region.h)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE osqp::osqpstatic)
 target_link_libraries(${PROJECT_NAME} PRIVATE libqhullcpp)
