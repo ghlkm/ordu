@@ -82,9 +82,9 @@ This is an example to run
 the source code for the bounded size top-k query (ORD, ORU) problem.
 
 to run (I assume you are in the build directory of ordu you created in the last step):
-
+```
 ./iPref -w 10 -k 10 -d 4 -m 50 -f ../data/pdt4d400k.txt -mt ORU_OA3 -W ../data/user4d200k.txt -n 2000000 -i ./idx.txt
-  
+``` 
 Explaination for the running parameters for iPref,
 
  - "-w", how many users preferences you want to test in "-W" user preferences file. In our example, it only takes the first 10 users (the first 10 rows in file)
