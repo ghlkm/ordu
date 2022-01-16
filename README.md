@@ -1,4 +1,4 @@
-# iPref
+# ORDU
 
 This is a cmake project (a complete C Plus Plus project) for paper:\
 Kyriakos Mouratidis, Keming Li, and Bo Tang. 2021. Marrying Top-k with Skyline Queries: Relaxing the Preference Input while Producing Output of Controllable Size. In Proceedings of the 2021 International Conference on Management of Data (SIGMOD/PODS '21). Association for Computing Machinery, New York, NY, USA, 1317-1330. DOI:https://doi.org/10.1145/3448016.3457299 
