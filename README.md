@@ -117,7 +117,7 @@ you can refer to directory /caseStudy_reproduce \
 
 -----------------
 You could also find the copy of this project in https://github.com/DBGroup-SUSTech/ordu   \
-If you got any problem to run this project, please contact likm20202@mail.sustech.edu.cn   \
+If you got any problem to run this project, please contact likm2020@mail.sustech.edu.cn   \
 If you are using the code of this project, please cite our paper: \
   @inproceedings{10.1145/3448016.3457299,\
 author = {Mouratidis, Kyriakos and Li, Keming and Tang, Bo}, \
