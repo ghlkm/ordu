@@ -115,6 +115,17 @@ you can refer to directory /caseStudy_reproduce \
 <img src="./image/k2m6_ast_trb_49_51-4.png" alt="drawing" width="300"/> <img src="./image/k2m6_pts_trb_43_57-4.png" alt="drawing" width="300"/>
 
 -----------------
+
+--------------
+Dataset
+--------------
+The dataset can be found the the "real" folder of 
+https://drive.google.com/drive/folders/1TaUDTRGgEVmkSvdTbDbYQb5LH0r6gNdm
+
+
+There might be some different from what paper describe, such as independent data size is 500K rather than 400K memtioned in the paper, you can just use 400K of them. 
+  
+------------
 You could also find the copy of this project in https://github.com/DBGroup-SUSTech/ordu   \
 If you got any problem to run this project, please contact likm2020@mail.sustech.edu.cn   \
 If you are using the code of this project, please cite our paper: \
@@ -131,10 +142,4 @@ numpages = {14},\
 series = {SIGMOD/PODS '21}\
 }
   
---------------
-dataset
---------------
-The real dataset can be found the the "real" folder of 
-https://drive.google.com/drive/folders/1TaUDTRGgEVmkSvdTbDbYQb5LH0r6gNdm?usp=sharing
 
-  
