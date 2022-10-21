@@ -192,7 +192,9 @@ int main(const int argc, const char** argv)
 
             unknown_x_efficient obj(dim, k, w, *rtree, PointSet);
             for (int i = 0; i < m; ++i) {
-                obj.get_next();
+                auto id_dist=obj.get_next();
+                // 第几个: 产品的id, 产品的距离
+                cout<<i+1<<":"<<id_dist.first<<","<<id_dist.second<<endl;
                 auto now = chrono::steady_clock::now();
                 chrono::duration<double> elapsed_seconds= now-w_begin;
                 avg_time[i]+=elapsed_seconds.count();
