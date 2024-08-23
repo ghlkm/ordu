@@ -50,7 +50,7 @@ Installing Qhull with CMake 2.6 or later
 To install osqp
 -----------------
   ```
-  git clone --recursive https://github.com/oxfordcontrol/osqp
+  git clone --branch v0.6.0 --recursive https://github.com/oxfordcontrol/osqp
   cd osqp
   mkdir build
   cd build
