@@ -1,7 +1,6 @@
 
 #ifndef IPREF_QHULL_USER_H
 #define IPREF_QHULL_USER_H
-#include "RboxPoints.h"
 #include "QhullError.h"
 #include "QhullQh.h"
 #include "QhullFacet.h"
@@ -36,11 +35,140 @@ using orgQhull::QhullUser;
 using orgQhull::QhullVertex;
 using orgQhull::QhullVertexSet;
 using orgQhull::RboxPoints;
+
+
+template<typename T>
+vector<vector<double>> halfspace2vertices(const realT *pointCoordinates, int p_num, vector<T> &innerPoint){
+    int dim=innerPoint.size();
+    Qhull q;
+    orgQhull::Coordinates feasible;
+    for (T i:innerPoint) {
+        feasible << i;
+    }
+//        cout<<innerPoint.size()<<endl;
+    q.setFeasiblePoint(feasible);
+    try {
+        std::stringstream output;
+        q.setOutputStream(&output);
+        q.runQhull("normals of square", dim+1, p_num, pointCoordinates, "H Pp"); // halfspace intersect
+        // see http://www.qhull.org/html/qh-optf.htm#FS
+
+//        output.clear();
+//        q.outputQhull("p");
+//        cout<<"debug: after trying to get points"<<endl;
+//        cout<<output.str()<<endl;
+//
+//        output.clear();
+//        q.outputQhull("Fx");
+//        cout<<"debug: after trying to get vertex id"<<endl;
+//        cout<<output.str()<<endl;
+
+        output.clear();
+        q.outputQhull("Fp");
+//        cout<<"debug: after trying to get extreme vertices"<<endl;
+//        cout<<output.str()<<endl;
+        int out_dim, out_vtxCnt;
+        output>>out_dim;
+        output>>out_vtxCnt;
+        vector<vector<double>> ret(out_vtxCnt, vector<double>(out_dim));
+        for (int i = 0; i < out_vtxCnt; ++i) {
+            for (int j = 0; j < out_dim; ++j) {
+                output>>ret[i][j];
+            }
+        }
+        output.clear();
+        return ret;
+    } catch (std::exception &e) {// catch by ref
+        cout<<e.what();
+        vector<vector<double>> UNUSED_VVD;
+        return UNUSED_VVD;
+    }
+}
+
+template<typename T>
+vector<uint> halfspace2nonRedundant(const realT *pointCoordinates, int p_num, vector<T> &innerPoint){
+    int dim=innerPoint.size();
+    Qhull q;
+    orgQhull::Coordinates feasible;
+    for (T i:innerPoint) {
+        feasible << i;
+    }
+    q.setFeasiblePoint(feasible);
+    try {
+        std::stringstream output;
+        q.setOutputStream(&output);
+        q.runQhull("normals of square", dim+1, p_num, pointCoordinates, "H Pp"); // halfspace intersect
+        // see http://www.qhull.org/html/qh-optf.htm#FS
+        output.clear();
+        q.outputQhull("Fx");
+        int out_num;
+        output>>out_num;
+        vector<uint> ret(out_num);
+        for (int i = 0; i < out_num; ++i) {
+            output>>ret[i];
+        }
+        return ret;
+    } catch (std::exception &e) {// catch by ref
+        cout<<e.what();
+        vector<uint> UNUSED_VVD;
+        return UNUSED_VVD;
+    }
+}
+
+
 class qhull_user{
 #define POINT_ID int
 #define REGION vector<vector<double>>
 public:
     qhull_user(){
+
+    }
+
+    double volumn_at_half_inter(const realT *pointCoordinates, int p_num, vector<float> &innerPoint){
+        int dim=innerPoint.size();
+        Qhull q;
+        orgQhull::Coordinates feasible;
+        for (float i:innerPoint) {
+            feasible << i;
+        }
+//        cout<<innerPoint.size()<<endl;
+        q.setFeasiblePoint(feasible);
+//        q.setOutputStream(&cout);
+        try {
+            std::stringstream output;
+            q.setOutputStream(&output);
+            q.runQhull("normals of square", dim+1, p_num, pointCoordinates, "QJ H Pp"); // halfspace intersect
+            q.outputQhull("FS");
+            cout<<"debug: after trying to get volume"<<endl;
+            cout<<output.str()<<endl;
+            int UNUSED;
+            // see http://www.qhull.org/html/qh-optf.htm#FS
+            output>>UNUSED; // number of integers
+            output>>UNUSED; // number of reals
+            double area, volume;
+            output>>area;
+            output>>volume;
+
+            output.clear();
+            q.outputQhull("Fp");
+            cout<<"debug: after trying to get volume"<<endl;
+            cout<<output.str()<<endl;
+
+//            output.clear();
+//            q.outputQhull("p");
+//            cout<<"debug: after trying to get volume"<<endl;
+//            cout<<output.str()<<endl;
+//
+//            output.clear();
+//            q.outputQhull("Fx");
+//            cout<<"debug: after trying to get volume"<<endl;
+//            cout<<output.str()<<endl;
+
+            return volume;
+        } catch (exception &e) {// catch by ref
+            cout<<e.what();
+            return 0;
+        }
     }
 
     void get_neiVT_of_VT(Qhull &q, const vector<int>&pd_ids, unordered_map<int, vector<int>> &ret){

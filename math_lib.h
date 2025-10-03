@@ -9,6 +9,9 @@
 //                         const A& pdt, int dimen, int k, int rou);
 
 template<typename V, typename VV>
+double dist(const V &tmpT, const VV &PG);
+
+template<typename V, typename VV>
 double inflection_radius(const V &tmpT, const VV &PG, vector<c_float> &w,
                          int pdt_idx, int dimen, int k);
 
@@ -26,6 +29,9 @@ bool dominate(const V &v1, const V &v2);
 
 template<typename VV>
 vector<int> k_skyband(VV &P, const int &k);
+
+template<typename VV>
+vector<int> k_skyband(VV &P, const int &k, std::size_t p1, std::size_t p2);
 
 template<typename A, typename B>
 double inflection_radius(vector<c_float> &w,
@@ -75,11 +81,39 @@ bool isR_skyband(const VV &PG, const VI&vs, const VF &opt, const VF &w, const FL
 template<typename INT, typename VV>
 vector<INT> computeTopK(const int dim, VV &PG, vector<INT> &skyband, vector<float>& weight, int k);
 
+template<typename INT, typename VV, typename FLOAT>
+vector<INT> computeTopK_Extend(const int dim, VV &PG, vector<INT> &skyband, vector<FLOAT>& weight, int k,
+                               vector<INT> &retSw, vector<INT> &retSnr);
+
 template<typename V1, typename V2>
 inline double dot(V1 &v1, V2 &v2);
 
 template<typename V1, typename V2>
 inline double dot(V1 &v1, V2 &v2, std::size_t size);
+
+inline double max(double a, float b){
+    return a>b?a:b;
+}
+
+inline double max(float b, double a){
+    return a>b?a:b;
+}
+
+inline long min(int a, long b){
+    return a<b?a:b;
+}
+
+inline long min(long a, int b){
+    return a<b?a:b;
+}
+
+
+template<typename FF>
+vector<int> non_dominate_set(const vector<int> &candidate, const FF* P, std::size_t dim);
+
+
+template<typename FF>
+vector<int> no_dominate_set(const vector<int> &candidate, const FF* P, std::size_t dim);
 
 #include "math_lib_impl.h"
 //the implementation (definition) of a template class

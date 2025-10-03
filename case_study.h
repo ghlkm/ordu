@@ -18,5 +18,9 @@ double recall(vector<int>::iterator gtb, vector<int>::iterator gte, vector<int>:
 
 double recall(set<int> &groundTruth, set<int>&result);
 
+double f1score(vector<int>::iterator gtb, vector<int>::iterator gte, vector<int>::iterator rb, vector<int>::iterator re);
+
+double f1score(set<int> &groundTruth, set<int>&result);
+
 vector<int> OSS_skyline(int objCnt, int r, Rtree*rtree, float **PointSet, int dim);
 #endif //IPREF_CASE_STUDY_H

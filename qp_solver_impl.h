@@ -156,6 +156,16 @@ inline FLOAT qp_solver::update_w_h_solve(const vector<FLOAT> &w, const vector<FL
     return (FLOAT)ret;
 }
 
+template<typename FLOAT>
+inline FLOAT qp_solver::update_w_h_solve(const vector<FLOAT> &w, const vector<FLOAT> &h, c_float *&solution){
+//    assert(w.size()==dim);
+//    assert(h.size()==dim);
+    this->update_w_h(w, h);
+    c_float ret= this->qp_solve(solution);
+    return (FLOAT)ret;
+}
+
+
 
 
 

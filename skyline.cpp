@@ -14,34 +14,6 @@ float minDist(float p1[], float p2[], int dimen)
 	return (float)sqrt(mindist);
 }
 
-bool dominatedByK(const int dimen, const float pt[], vector<long> &kskyband, float* PG[], int k)
-{
-    // see if pt is dominated by k options of kskyband
-    if (kskyband.empty())
-        return false;
-
-    int count = 0;
-    for (vector<long>::iterator iter = kskyband.begin(); iter != kskyband.end(); iter++)
-    {
-        long pid = *iter;
-        bool dominated = true;
-        for (int i = 0; i < dimen; i++)
-        {
-            if (PG[pid][i] + SIDELEN < pt[i])
-            {
-                dominated = false;
-                break;
-            }
-        }
-        if (dominated) {
-            count++;
-            if(count>=k){
-                return true;
-            }
-        }
-    }
-    return false;
-}
 
 bool dominatedByK_noSL(const int dimen, const float pt[], vector<long> &kskyband, float* PG[], int k)
 {
@@ -115,7 +87,7 @@ int countRecords(Rtree& a_rtree, int pageID)
 	return sumRecords;
 }
 
-void kskyband(const int dimen, Rtree& a_rtree, vector<long int>& kskyband, float* PG[], const int k)
+void kskyband(const int dimen, Rtree& a_rtree, vector<int>& kskyband, float* PG[], const int k)
 {
 	RtreeNode* node;
 	multimap<float, int> heap;
@@ -158,13 +130,13 @@ void kskyband(const int dimen, Rtree& a_rtree, vector<long int>& kskyband, float
 				{
 					for (int d = 0; d < dimen; d++)
 					{
-						pt[d] = node->m_entry[i]->m_hc.getLower()[d] + SIDELEN;
+						pt[d] = (node->m_entry[i]->m_hc.getLower()[d] + node->m_entry[i]->m_hc.getUpper()[d])/2;
 					}
-					if (!dominatedByK(dimen, pt, kskyband, PG, k))
-					{
+//					if (!dominatedByK(dimen, pt, kskyband, PG, k))
+//					{
 						mindist = minDist(pt, ORIGNIN, dimen);
 						heap.emplace(mindist, node->m_entry[i]->m_id + MAXPAGEID);
-					}
+//					}
 				}
 			}
 			else

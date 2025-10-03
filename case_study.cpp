@@ -69,6 +69,18 @@ double recall(set<int> &groundTruth, set<int>&result){
 }
 
 
+double f1score(vector<int>::iterator gtb, vector<int>::iterator gte, vector<int>::iterator rb, vector<int>::iterator re){
+    set<int> gt(gtb, gte);
+    set<int> r(rb, re);
+    return f1score(gt, r);
+}
+
+double f1score(set<int> &groundTruth, set<int>&result){
+    double p=precision(groundTruth, result);
+    double r=recall(groundTruth, result);
+    return 2*p*r/(p+r);
+}
+
 int total_do_cnt(map<int, unordered_set<int>> &do_id, vector<int> &test_this){
     // \para input do_id
     //     do_id[1]={2, 3, 4} means option 1 dominates option 2, 3, and 4
@@ -82,7 +94,7 @@ int total_do_cnt(map<int, unordered_set<int>> &do_id, vector<int> &test_this){
 }
 
 vector<int> OSS_skyline(int objCnt, int r, Rtree*rtree, float **PointSet, int dim){
-    vector<long> one_skyband;
+    vector<int> one_skyband;
     kskyband(dim, *rtree, one_skyband, PointSet, 1);
 
     // build dominate relations

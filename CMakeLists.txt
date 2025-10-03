@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 project(iPref)
 
 ### the version of c++ can be later or equals to c++11
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 ### please see how to install qhull in README.md and change the path of qhull based on your machine
 ### add qhull
@@ -23,7 +23,7 @@ add_dependencies(libqhullcpp qhull)
 ### add osqp
 find_package(osqp REQUIRED)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed -O3 -Wall -ldl")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed -O3 -g -Wall -ldl")
 
 include_directories(${CMAKE_SOURCE_DIR}/lp_lib/bfp)
 include_directories(${CMAKE_SOURCE_DIR}/lp_lib/bfp/bfp_LUSOL)
@@ -130,7 +130,7 @@ add_executable(iPref
         quadProg_lib/Array.cc
         quadProg_lib/QuadProg++.hh
         quadProg_lib/QuadProg++.cc
-        region.h)
+        region.h daORU.cpp daORU.h test.h utils.cpp utils.h)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE osqp::osqpstatic)
 target_link_libraries(${PROJECT_NAME} PRIVATE libqhullcpp)

@@ -10,6 +10,12 @@
 #include <algorithm>
 #include "qp_solver.h"
 
+template<typename V, typename VV>
+double dist(const V &tmpT, const VV &PG){
+    auto tmp=tmpT-PG;
+    return sqrt(tmp*tmp);
+}
+
 template<typename V>
 bool dominate(const V &v1, const V &v2) {
     /*
@@ -137,6 +143,33 @@ vector<int> k_skyband(VV &P, const int &k) {
             if (dominate(P[i], P[j])) {
                 ++do_cnt[j];
             } else if (dominate(P[j], P[i])) {
+                ++do_cnt[i];
+            }
+        }
+        if (do_cnt[i] < k) {
+            ret.push_back(i);
+        }
+    }
+    return ret;
+}
+
+template<typename VV>
+vector<int> k_skyband(VV &P, const int &k, std::size_t p1, std::size_t p2) {
+    /*
+     * TODO: be careful to use this, begin from 1!!!!
+     * /tpara vector<vector<double>> or vector<vector<double>>
+     * the k-skyband contains thoes records that are dominated by fewer than k others
+     */
+    vector<int> do_cnt(p1, 0);
+    vector<int> ret;
+    for (auto i = 1; i <p1; ++i) {
+        for (auto j = i + 1; j < p1; ++j) {
+            if (do_cnt[i] >= k) {
+                break;
+            }
+            if (v1_dominate_v2(P[i], P[j], p2)) {
+                ++do_cnt[j];
+            } else if (v1_dominate_v2(P[j], P[i], p2)) {
                 ++do_cnt[i];
             }
         }
@@ -320,6 +353,47 @@ vector<INT> computeTopK(const int dim, VV &PG, vector<INT> &skyband, vector<floa
     return topkRet;
 }
 
+template<typename INT, typename VV, typename  FLOAT>
+vector<INT> computeTopK_Extend(const int dim, VV &PG, vector<INT> &skyband, vector<FLOAT>& weight, int k,
+        vector<INT> &retSw, vector<INT> &retSnr)
+{
+    vector<pair<INT, double>> rec;
+    rec.reserve(skyband.size());
+    for(INT r: skyband){
+        double s=0;
+        for (int d = 0; d < dim; d++){
+            s += PG[r][d] *weight[d];
+        }
+        rec.emplace_back(r, s);
+    }
+    sort(rec.begin(), rec.end(), [](auto &a, auto& b){
+        return a.second>b.second;
+    });
+    double kthScore=rec[k-1].second;
+    int position =k;
+    vector<INT> topkRet;
+    for (int i = 0; i < k; ++i) {
+        topkRet.push_back(rec[i].first);
+    }
+    while(rec.size()>position){
+        if(abs(rec[position].second-kthScore)>1e-6){
+            break;
+        }
+        topkRet.push_back(rec[position].first);
+        position++;
+    }
+
+    retSw=no_dominate_set(topkRet, PG, dim);
+    if(position<rec.size()){
+        vector<int> tmp(rec.size()-position);
+        for (int i = position; i <rec.size() ; ++i) {
+            tmp[i-position]=rec[i].first;
+        }
+        retSnr=non_dominate_set(tmp, PG, dim);
+    }
+    return topkRet;
+}
+
 template<typename V1, typename V2>
 inline double dot(V1 &v1, V2 &v2){
     return dot(v1, v2, v1.size());
@@ -330,6 +404,46 @@ inline double dot(V1 &v1, V2 &v2, std::size_t size){
     double ret=0;
     for (int i = 0; i < size; ++i) {
         ret+=v1[i]*v2[i];
+    }
+    return ret;
+}
+
+template<typename FF>
+vector<int> non_dominate_set(const vector<int> &candidate, const FF* P, std::size_t dim){
+    vector<int> ret;
+    for (int l: candidate) {
+        bool flag=true;
+        for (int i: candidate) {
+            if(l!=i){
+                if(v1_dominate_v2(P[i], P[l], dim)) {
+                    flag = false;
+                    break;
+                }
+            }
+        }
+        if(flag){
+            ret.push_back(l);
+        }
+    }
+    return ret;
+}
+
+template<typename FF>
+vector<int> no_dominate_set(const vector<int> &candidate, const FF* P, std::size_t dim){
+    vector<int> ret;
+    for (int l: candidate) {
+        bool flag=true;
+        for (int i: candidate) {
+            if(l!=i){
+                if(v1_dominate_v2(P[l], P[i], dim)) {
+                    flag = false;
+                    break;
+                }
+            }
+        }
+        if(flag){
+            ret.push_back(l);
+        }
     }
     return ret;
 }

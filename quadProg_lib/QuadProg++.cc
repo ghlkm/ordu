@@ -96,11 +96,11 @@ double solve_quadprog(Matrix<double>& G, Vector<double>& g0,
     inf = 1.0E300;
   double t, t1, t2; /* t is the step lenght, which is the minimum of the partial step length t1 
     * and the full step length t2 */
-  Vector<int> A(m + p), A_old(m + p), iai(m + p);
+    Vector<int> A(m + p), A_old(m + p), iai(m + p);
   unsigned int iq, iter = 0;
   Vector<bool> iaexcl(m + p);
-	
-  /* p is the number of equality constraints */
+
+    /* p is the number of equality constraints */
   /* m is the number of inequality constraints */
 #ifdef TRACE_SOLVER
   std::cout << std::endl << "Starting solve_quadprog" << std::endl;
@@ -201,20 +201,20 @@ double solve_quadprog(Matrix<double>& G, Vector<double>& g0,
     
     /* compute the new solution value */
     f_value += 0.5 * (t2 * t2) * scalar_product(z, np);
-    A[i] = -i - 1;
-    
-    if (!add_constraint(R, J, d, iq, R_norm))
+      A[i] = -i - 1;
+
+      if (!add_constraint(R, J, d, iq, R_norm))
     {	  
       // Equality constraints are linearly dependent
       throw std::runtime_error("Constraints are linearly dependent");
       return f_value;
     }
   }
-  
-  /* set iai = K \ A */
+
+    /* set iai = K \ A */
   for (i = 0; i < m; i++)
     iai[i] = i;
-  
+
 l1:	iter++;
 #ifdef TRACE_SOLVER
   print_vector("x", x);
@@ -247,7 +247,7 @@ l1:	iter++;
   
   if (fabs(psi) <= m * std::numeric_limits<double>::epsilon() * c1 * c2* 100.0)
   {
-    /* numerically there are not infeasibilities anymore */
+      /* numerically there are not infeasibilities anymore */
     return f_value;
   }
   
@@ -272,7 +272,7 @@ l2: /* Step 2: check for feasibility and determine a new S-pair */
     }
   if (ss >= 0.0)
   {
-    return f_value;
+      return f_value;
   }
   
   /* set np = n[ip] */
@@ -319,7 +319,8 @@ l2a:/* Step 2a: determine step direction */
 	    }
     }
   }
-  /* Compute t2: full step length (minimum step in primal space such that the constraint ip becomes feasible */
+
+    /* Compute t2: full step length (minimum step in primal space such that the constraint ip becomes feasible */
   if (fabs(scalar_product(z, z))  > std::numeric_limits<double>::epsilon()) // i.e. z != 0
   {
     t2 = -s[ip] / scalar_product(z, np);
@@ -338,7 +339,7 @@ l2a:/* Step 2a: determine step direction */
   /* Step 2c: determine new S-pair and take step: */
   
   /* case (i): no step in primal or dual space */
-  if (t >= inf)
+    if (t >= inf)
   {
     /* QPP is infeasible */
     // FIXME: unbounded to raise
@@ -352,7 +353,7 @@ l2a:/* Step 2a: determine step direction */
       u[k] -= t * r[k];
     u[iq] += t;
     iai[l] = l;
-    delete_constraint(R, J, A, u, n, p, iq, l);
+      delete_constraint(R, J, A, u, n, p, iq, l);
 #ifdef TRACE_SOLVER
     std::cout << " in dual space: " 
       << f_value << std::endl;
@@ -360,10 +361,10 @@ l2a:/* Step 2a: determine step direction */
     print_vector("z", z);
     print_vector("A", A, iq + 1);
 #endif
-    goto l2a;
+      goto l2a;
   }
-  
-  /* case (iii): step in primal and dual space */
+
+    /* case (iii): step in primal and dual space */
   
   /* set x = x + t * z */
   for (k = 0; k < n; k++)

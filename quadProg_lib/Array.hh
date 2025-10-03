@@ -99,8 +99,8 @@ Vector<T>::Vector(const Vector<T>& rhs)
 template <typename T> 
 Vector<T>::~Vector() 
 { 
-  if (v != 0) 
-    delete[] (v); 
+  if (v != 0)
+      delete[] (v);
 } 
 
 template <typename T> 
