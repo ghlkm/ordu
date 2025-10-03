@@ -1,8 +1,10 @@
 # ORDU
 
-This is a cmake project (a complete C Plus Plus project) for paper:\
-Kyriakos Mouratidis, Keming Li, and Bo Tang. 2021. Marrying Top-k with Skyline Queries: Relaxing the Preference Input while Producing Output of Controllable Size. In Proceedings of the 2021 International Conference on Management of Data (SIGMOD/PODS '21). Association for Computing Machinery, New York, NY, USA, 1317-1330. DOI:https://doi.org/10.1145/3448016.3457299 
+This is a cmake project (a complete C Plus Plus project) for paper:
 
+[1] Kyriakos Mouratidis, Keming Li, and Bo Tang. 2021. Marrying Top-k with Skyline Queries: Relaxing the Preference Input while Producing Output of Controllable Size. In Proceedings of the 2021 International Conference on Management of Data (SIGMOD/PODS '21). Association for Computing Machinery, New York, NY, USA, 1317-1330. DOI:https://doi.org/10.1145/3448016.3457299 
+
+[2] Kyriakos Mouratidis, Keming Li, and Bo Tang. 2025. Marrying Top-k with Skyline Queries: Operators with Relaxed Preference Input and Controllable Output Size. ACM Transactions on Database Systems 50, 1, Article 2 (January 2025), 37 pages. Association for Computing Machinery, New York, NY, USA. DOI:https://doi.org/10.1145/3705726
 
 Before running this code:
 
@@ -137,5 +139,23 @@ pages = {1317–1330},\
 numpages = {14},\
 series = {SIGMOD/PODS '21}\
 }
-  
+
+ @article{10.1145/3705726, \
+author = {Mouratidis, Kyriakos and Li, Keming and Tang, Bo}, \
+title = {Marrying Top-k with Skyline Queries: Operators with Relaxed Preference Input and Controllable Output Size}, \
+year = {2025}, \
+issue_date = {March 2025}, \
+publisher = {Association for Computing Machinery}, \
+volume = {50}, \
+number = {1}, \
+issn = {0362-5915}, \
+url = {https://doi.org/10.1145/3705726}, \
+doi = {10.1145/3705726}, \
+month = jan, \
+articleno = {2}, \
+numpages = {37}, \
+}
+
+
+
 
