@@ -9,7 +9,7 @@ This is a cmake project (a complete C Plus Plus project) for paper:
 Before running this code:
 
 Step1:
-download make and cmake
+download g++, make, and cmake (make sure your system have these)
 
 Step2:
 download source code of Qhull, compile it using cmake and install it:http://www.qhull.org/download/
