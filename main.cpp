@@ -141,14 +141,14 @@ int main(const int argc, const char** argv)
     vector<vector<int>> r;
     kskyband_read(s, r);
     vector<int> kskybandRecords;
-    for (int ik=0;ik<k;++ik) {
-        if(ik>=r.size()){
-            break;
-        }
-        for (int &i:r[ik]) {
-            kskybandRecords.push_back(i+1);
-        }
-    }
+    // for (int ik=0;ik<k;++ik) {
+    //     if(ik>=r.size()){
+    //         break;
+    //     }
+    //     for (int &i:r[ik]) {
+    //         kskybandRecords.push_back(i+1);
+    //     }
+    // }
 
     // incremental version, without known m
     // We do not have exact m, we need tell the user the radius rho and its corresponding T
@@ -1157,3 +1157,4 @@ int main(const int argc, const char** argv)
 
     return 0;
 }
+
