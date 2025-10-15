@@ -136,10 +136,10 @@ int main(const int argc, const char** argv)
     qp_ptr=&qp;
     g_r_domain_vec=gen_r_domain_vec(dim);
 
-    string s=string(datafile);
-    s+=".kskyband";
-    vector<vector<int>> r;
-    kskyband_read(s, r);
+    // string s=string(datafile);
+    // s+=".kskyband";
+    // vector<vector<int>> r;
+    // kskyband_read(s, r);
     vector<int> kskybandRecords;
     // for (int ik=0;ik<k;++ik) {
     //     if(ik>=r.size()){
@@ -566,9 +566,9 @@ int main(const int argc, const char** argv)
         kskyband(dim, *rtree, kskybandRecords, PointSet, k);
         sort(kskybandRecords.begin(), kskybandRecords.end());
 //        cout<<"kskyband record size: "<< kskybandRecords.size()<<endl;
-//        vector<int> oneSkyband;
-//        kskyband(dim, *rtree, oneSkyband, PointSet, 1);
-//        sort(oneSkyband.begin(), oneSkyband.end());
+        vector<int> oneSkyband;
+        kskyband(dim, *rtree, oneSkyband, PointSet, 1);
+       // sort(oneSkyband.begin(), oneSkyband.end());
 
         sort(kskybandRecords.begin(), kskybandRecords.end());
         vector<int> oneSkyband=r[0];
@@ -1157,4 +1157,5 @@ int main(const int argc, const char** argv)
 
     return 0;
 }
+
 
